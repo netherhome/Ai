@@ -19,19 +19,25 @@
   <button onclick="send()">Send</button>
 
   <script>
-    const HF_TOKEN = "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"; // your token
-    const MODEL = "gpt2"; // free, small, works for browser demo
+    const HF_TOKEN = "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"; // your new token
+    const MODEL = "gpt2"; // small free model, works in browser
 
     async function query(prompt) {
-      const resp = await fetch("https://api-inference.huggingface.co/models/" + MODEL, {
-        method: "POST",
-        headers: {
-          "Authorization": "Bearer " + HF_TOKEN,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ inputs: prompt })
-      });
-      return await resp.json();
+      try {
+        const resp = await fetch("https://api-inference.huggingface.co/models/" + MODEL, {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + HF_TOKEN,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ inputs: prompt })
+        });
+        const data = await resp.json();
+        if(data.error) return "AI ERROR: " + data.error;
+        return (typeof data === "string") ? data : (data?.[0]?.generated_text || JSON.stringify(data));
+      } catch(err) {
+        return "AI ERROR: " + err;
+      }
     }
 
     async function send() {
@@ -41,9 +47,7 @@
       document.getElementById("msg").value = "";
       addLine("AI: ...", "bot");
 
-      const data = await query(msg);
-      let reply = (typeof data === "string") ? data : (data?.[0]?.generated_text || JSON.stringify(data));
-      if(reply.startsWith(msg)) reply = reply.slice(msg.length);
+      const reply = await query(msg);
       updateLast("AI: " + reply.trim(), "bot");
     }
 
