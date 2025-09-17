@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>HyphonChat Mega</title>
+<title>HyphonChat</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{--bg-dark:#111;--text-dark:#eee;--bg-light:#f5f5f5;--text-light:#111;}
@@ -13,140 +13,9 @@ body{font-family:'Inter',sans-serif;margin:0;padding:0;background:var(--bg-dark)
 #chat{border:1px solid #444;padding:10px;height:400px;overflow-y:auto;border-radius:12px;background:#222;flex:1;display:none;flex-direction:column;}
 textarea{width:100%;max-width:80%;height:50px;padding:10px;border-radius:8px;border:1px solid #555;margin-top:10px;resize:none;display:none;}
 button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:pointer;}
-.userBubble{padding:8px 12px;border-radius:15px;margin:2px 0;max-width:70%;word-wrap:break-word;align-self:flex-end;color:#fff;font-weight:500;position:relative;}
-.friendBubble{padding:8px 12px;border-radius:15px;margin:2px 0;max-width:70%;word-wrap:break-word;align-self:flex-start;color:#fff;font-weight:500;position:relative;}
-.usernameLabel{font-weight:600;margin-top:8px;margin-bottom:0;font-size:12px;color:#aaa;}
-.joinMsg{color:#aaa;text-align:center;font-style:italic;margin:5px 0;}
-.timestamp{font-size:10px;color:#ccc;margin-left:5px;}
-#toggleMode{position:absolute;top:10px;right:10px;padding:5px 10px;border-radius:6px;}
-.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);justify-content:center;align-items:center;z-index:50;}
-.modalContent{background:#222;color:#fff;padding:20px;border-radius:12px;text-align:center;min-width:250px;}
-.modalContent input{padding:8px;margin:8px;border-radius:6px;border:none;}
-.modalContent button{margin-top:5px;padding:8px 12px;}
-.editDelete{position:absolute;top:-5px;right:-5px;display:none;gap:4px;}
-.editDelete button{padding:2px 5px;font-size:12px;border-radius:4px;}
-.typingIndicator{font-style:italic;color:#aaa;font-size:12px;margin:3px 0;}
-#friendsPanel button{margin:2px;}
-</style>
-</head>
-<body>
-
-<div id="startup">
-  <h1>Welcome to HyphonChat!</h1>
-  <div>
-    <button onclick="makeAccountUI()">Make Account</button>
-    <button onclick="openAccountUI()">Open Account</button>
-  </div>
-</div>
-
-<div id="chatUI">
-  <button id="toggleMode" onclick="toggleMode()">Toggle Light/Dark</button>
-  <div id="chatContainer">
-    <div style="margin-bottom:10px;" id="topButtons">
-      <button onclick="openAccountModalClean()">Account</button>
-      <button onclick="showNewChat()">New Chat</button>
-      <button onclick="leaveChat()">Leave Chat</button>
-      <button onclick="openFriendsPanel()">Friends</button>
-    </div>
-    <div id="chat"></div>
-    <div id="typingDiv" class="typingIndicator"></div>
-    <textarea id="msg" placeholder="Type a message..."></textarea>
-    <button id="sendBtn" onclick="sendMessage()">Send</button>
-  </div>
-</div>
-
-<!-- Modals -->
-<div id="modal" class="modal"><div class="modalContent"><div id="modalText"></div><button onclick="closeModal()">X</button></div></div>
-<div id="accountModal" class="modal"><div class="modalContent"><div id="accountText"></div>
-<input id="accountInput" placeholder="Enter name"/>
-<input id="accountPassword" type="password" placeholder="Password (optional)"/>
-<div id="accountExtras"></div>
-<button onclick="submitAccount()">Submit</button>
-<button onclick="closeAccountModal()">X</button>
-</div></div>
-<div id="newChatModal" class="modal"><div class="modalContent">
-<button onclick="createChatUI()">Create Chat</button>
-<button onclick="joinChatUI()">Join Chat</button>
-<button onclick="closeNewChat()">X</button>
-</div></div>
-<div id="createChatModal" class="modal"><div class="modalContent">
-<div>Create Chat</div><input id="createChatName" placeholder="Chat name"/><button onclick="submitCreateChat()">Create</button><button onclick="closeCreateChat()">X</button>
-</div></div>
-<div id="joinChatModal" class="modal"><div class="modalContent">
-<div>Join Chat</div><input id="joinChatCode" placeholder="Chat code"/><button onclick="submitJoinChat()">Join</button><button onclick="closeJoinChat()">X</button>
-</div></div>
-
-<!-- Friends Panel -->
-<div id="friendsModal" class="modal"><div class="modalContent">
-<h3>Friends</h3>
-<button onclick="openAddFriendModal()">Add Friend</button>
-<button onclick="openFriendRequests()">Friend Requests</button>
-<button onclick="openDMs()">DMs</button>
-<div id="friendsPanel"></div>
-<button onclick="closeFriendsPanel()">X</button>
-</div></div>
-
-<!-- Other modals reused from previous script -->
-<div id="friendModal" class="modal"><div class="modalContent"><h3>Add Friend</h3>
-<input id="friendNameInput" placeholder="Friend's name"/>
-<button onclick="sendFriendRequest()">Send Request</button>
-<button onclick="closeFriendModal()">X</button>
-</div></div>
-<div id="requestsModal" class="modal"><div class="modalContent"><h3>Friend Requests</h3>
-<div id="requestsList"></div>
-<button onclick="closeRequestsModal()">X</button>
-</div></div>
-<div id="dmModal" class="modal"><div class="modalContent"><h3>DMs</h3>
-<div id="dmList"></div>
-<button onclick="closeDMModal()">X</button>
-</div></div>
-
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-<script>
-// Firebase
-const firebaseConfig={apiKey:"AIzaSyCSh6K8e_CAswGyYuIvgMVKZ3T8b5gGKFU",authDomain:"hyphonchat.firebaseapp.com",databaseURL:"https://hyphonchat-default-rtdb.firebaseio.com",projectId:"hyphonchat",storageBucket:"hyphonchat.firebasestorage.app",messagingSenderId:"172774813412",appId:"1:172774813412:web:8d307b6a170bf270cfc6f1"};
-firebase.initializeApp(firebaseConfig);
-const db=firebase.database();
-
-// Vars
-let myName="", myColor="#1abc9c", isDark=true;
-let currentChat=null, sending=false;
-const chatDiv=document.getElementById("chat");
-const typingDiv=document.getElementById("typingDiv");
-const maxMessages=40;
-const standardColors=["#1abc9c","#3498db","#e74c3c","#f1c40f","#9b59b6"];
-const secretColors=["linear-gradient(45deg,#ff6ec4,#7873f5)","linear-gradient(45deg,#00f260,#0575e6)","linear-gradient(45deg,#ff512f,#dd2476)"];
-let chatListener=null;
-let typingTimeout;
-
-// -----------------
-// Full script logic continues here, merging:
-// - All chat functions (send/listen/edit/delete/join/leave)
-// - Username above bubble, grouped messages, timestamps
-// - Typing indicator
-// - Friends / Friend Requests / DMs
-// - Modals for all features
-// - Light/Dark mode
-// -----------------
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>HyphonChat 2.0</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-<style>
-:root{--bg-dark:#111;--text-dark:#eee;--bg-light:#f5f5f5;--text-light:#111;}
-body{font-family:'Inter',sans-serif;margin:0;padding:0;background:var(--bg-dark);color:var(--text-dark);}
-#startup,#chatUI{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg-dark);z-index:10;}
-#chatUI{display:none;flex-direction:column;padding:20px;box-sizing:border-box;}
-#chatContainer{display:flex;flex-direction:column;width:100%;max-width:900px;flex:1;}
-#chat{border:1px solid #444;padding:10px;height:400px;overflow-y:auto;border-radius:12px;background:#222;flex:1;display:none;flex-direction:column;}
-textarea{width:100%;max-width:80%;height:50px;padding:10px;border-radius:8px;border:1px solid #555;margin-top:10px;resize:none;display:none;}
-button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:pointer;}
-.userBubble{padding:8px 12px;border-radius:15px;margin:2px 0;max-width:70%;word-wrap:break-word;align-self:flex-end;color:#fff;font-weight:500;position:relative;}
-.friendBubble{padding:8px 12px;border-radius:15px;margin:2px 0;max-width:70%;word-wrap:break-word;align-self:flex-start;color:#fff;font-weight:500;position:relative;}
-.usernameLabel{font-weight:600;margin-top:8px;margin-bottom:0;font-size:12px;color:#aaa;}
+.userBubble{padding:8px 12px;border-radius:15px;margin:5px 0;max-width:70%;word-wrap:break-word;align-self:flex-end;color:#fff;font-weight:500;position:relative;}
+.friendBubble{padding:8px 12px;border-radius:15px;margin:5px 0;max-width:70%;word-wrap:break-word;align-self:flex-start;color:#fff;font-weight:500;position:relative;}
+.usernameLabel{font-size:12px;color:#aaa;margin-left:5px;margin-bottom:2px;}
 .joinMsg{color:#aaa;text-align:center;font-style:italic;margin:5px 0;}
 .timestamp{font-size:10px;color:#ccc;margin-left:5px;}
 #toggleMode{position:absolute;top:10px;right:10px;padding:5px 10px;border-radius:6px;}
@@ -205,19 +74,24 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 <div>Join Chat</div><input id="joinChatCode" placeholder="Chat code"/><button onclick="submitJoinChat()">Join</button><button onclick="closeJoinChat()">X</button>
 </div></div>
 
-<!-- Friends/Requests/DM Modals -->
-<div id="friendModal" class="modal"><div class="modalContent"><h3>Add Friend</h3>
-<input id="friendNameInput" placeholder="Friend's name"/>
-<button onclick="sendFriendRequest()">Send Request</button>
-<button onclick="closeFriendModal()">X</button>
+<!-- Friends / DMs Modals -->
+<div id="addFriendModal" class="modal"><div class="modalContent">
+<h3>Add Friend</h3>
+<input id="addFriendInput" placeholder="Friend username"/>
+<button onclick="submitAddFriend()">Send Request</button>
+<button onclick="closeAddFriend()">X</button>
 </div></div>
-<div id="requestsModal" class="modal"><div class="modalContent"><h3>Friend Requests</h3>
-<div id="requestsList"></div>
-<button onclick="closeRequestsModal()">X</button>
+
+<div id="friendRequestsModal" class="modal"><div class="modalContent">
+<h3>Friend Requests</h3>
+<div id="friendRequestsList"></div>
+<button onclick="closeFriendRequests()">X</button>
 </div></div>
-<div id="dmModal" class="modal"><div class="modalContent"><h3>DMs</h3>
-<div id="dmList"></div>
-<button onclick="closeDMModal()">X</button>
+
+<div id="dmsModal" class="modal"><div class="modalContent">
+<h3>DMs</h3>
+<div id="friendsList"></div>
+<button onclick="closeDMs()">X</button>
 </div></div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -238,10 +112,12 @@ const standardColors=["#1abc9c","#3498db","#e74c3c","#f1c40f","#9b59b6"];
 const secretColors=["linear-gradient(45deg,#ff6ec4,#7873f5)","linear-gradient(45deg,#00f260,#0575e6)","linear-gradient(45deg,#ff512f,#dd2476)"];
 let chatListener=null;
 let typingTimeout;
+let lastUser=null, lastTime=0;
 
 // --- MODAL HELPERS ---
 function showModalText(t){document.getElementById("modalText").innerText=t;document.getElementById("modal").style.display="flex";}
 function closeModal(){document.getElementById("modal").style.display="none";}
+function showAccountModalClean(){openAccountModalClean();}
 function closeAccountModal(){document.getElementById("accountModal").style.display="none";}
 function showNewChat(){document.getElementById("newChatModal").style.display="flex";}
 function closeNewChat(){document.getElementById("newChatModal").style.display="none";}
@@ -300,7 +176,7 @@ function sendMessage(){
 function joinChat(code){
   currentChat=code; chatDiv.innerHTML=""; chatDiv.style.display="flex";document.getElementById("msg").style.display="block";document.getElementById("sendBtn").style.display="inline-block";
   db.ref("chats/"+code+"/members/"+myName).set(true);
-  db.ref("messages/"+currentChat).push({system:true,text:`${myName} joined the chat (${code})`,timestamp:Date.now()});
+  db.ref("messages/"+currentChat).push({system:true,text:`${myName} joined the chat`,timestamp:Date.now()});
   listenMessages();
   listenTyping();
 }
@@ -312,129 +188,126 @@ function listenMessages(){
     pruneMessages();
   });
 }
+function formatTime(ms){
+  const d=new Date(ms);
+  let h=d.getHours(); let m=d.getMinutes(); if(m<10)m='0'+m;
+  return `${h}:${m}`;
+}
 function addMessageBubble(user,text,color,isMe,system,key,timestamp){
+  if(system){
+    const div=document.createElement("div");
+    div.className="joinMsg"; 
+    div.textContent=`[${formatTime(timestamp)}] ${text}`;
+    chatDiv.appendChild(div); chatDiv.scrollTop=chatDiv.scrollHeight;
+    return;
+  }
+  
+  let showName=true;
+  if(user===lastUser && (timestamp-lastTime)<=60000) showName=false;
+  lastUser=user; lastTime=timestamp;
+
+  if(showName){
+    const nameDiv=document.createElement("div");
+    nameDiv.className="usernameLabel";
+    nameDiv.textContent=user;
+    chatDiv.appendChild(nameDiv);
+  }
+
   const div=document.createElement("div");
-  if(system){div.className="joinMsg";div.textContent=`[${new Date(timestamp).getHours()}:${new Date(timestamp).getMinutes().toString().padStart(2,'0')}] ${text}`;} 
-  else {
-    const label=document.createElement("div");label.className="usernameLabel";label.textContent=user;div.appendChild(label);
-    const bubble=document.createElement("div");bubble.className=isMe?"userBubble":"friendBubble";bubble.textContent=text;
-    bubble.style.background=color?.startsWith("linear-gradient")?color:(color||isMe?"#1abc9c":"#444");
-    const timeSpan=document.createElement("span");timeSpan.className="timestamp";timeSpan.textContent=`${new Date(timestamp).getHours()}:${new Date(timestamp).getMinutes().toString().padStart(2,'0')}`;
-    bubble.appendChild(timeSpan);
-    if(isMe){
-      const btnDiv=document.createElement("div");btnDiv.className="editDelete";btnDiv.innerHTML='<button onclick="editMsg(\''+key+'\')">Edit</button><button onclick="deleteMsg(\''+key+'\')">Del</button>';
-      bubble.appendChild(btnDiv);
-      bubble.addEventListener("mouseenter",()=>{setTimeout(()=>{btnDiv.style.display="flex";},2000);});
-      bubble.addEventListener("mouseleave",()=>{btnDiv.style.display="none";});
-    }
-    div.appendChild(bubble);
+  div.className=isMe?"userBubble":"friendBubble";
+  div.style.background=color?.startsWith("linear-gradient")?color:(color||isMe?"#1abc9c":"#444");
+  const msgSpan=document.createElement("span"); msgSpan.textContent=text;
+  div.appendChild(msgSpan);
+
+  const timeSpan=document.createElement("span");timeSpan.className="timestamp";timeSpan.textContent=formatTime(timestamp);
+  div.appendChild(timeSpan);
+
+  if(isMe){
+    const btnDiv=document.createElement("div");btnDiv.className="editDelete";
+    btnDiv.innerHTML='<button onclick="editMsg(\''+key+'\')">Edit</button><button onclick="deleteMsg(\''+key+'\')">Del</button>';
+    div.appendChild(btnDiv);
+    div.addEventListener("mouseenter",()=>{setTimeout(()=>{btnDiv.style.display="flex";},2000);});
+    div.addEventListener("mouseleave",()=>{btnDiv.style.display="none";});
   }
   chatDiv.appendChild(div); chatDiv.scrollTop=chatDiv.scrollHeight;
 }
-function pruneMessages(){db.ref("messages/"+currentChat).once("value").then(snap=>{if(snap.numChildren()>maxMessages){const keys=Object.keys(snap.val()).sort();const del=keys.slice(0,snap.numChildren()-maxMessages);del.forEach(k=>db.ref("messages/"+currentChat+"/"+k).remove());}});}
-function deleteMsg(key){if(!currentChat)return;db.ref("messages/"+currentChat+"/"+key).remove();}
-function editMsg(key){if(!currentChat)return;const newText=prompt("Edit message:");if(newText) db.ref("messages/"+currentChat+"/"+key+"/text").set(newText);}
 
-// --- LEAVE CHAT ---
-function leaveChat(){
-  if(!currentChat) return alert("Not in a chat");
-  db.ref(`chats/${currentChat}/members/${myName}`).remove();
-  db.ref(`chats/${currentChat}/members`).get().then(snap=>{if(!snap.exists()) db.ref(`chats/${currentChat}`).remove();});
-  currentChat=null;
-  chatDiv.style.display="none";
-  document.getElementById("msg").style.display="none";
-  document.getElementById("sendBtn").style.display="none";
-  chatDiv.innerHTML="";
-  typingDiv.innerHTML="";
-  showModalText("You left the chat.");
+function pruneMessages(){
+  db.ref("messages/"+currentChat).get().then(snap=>{
+    const msgs=Object.entries(snap.val()||{});
+    if(msgs.length>maxMessages){
+      const excess=msgs.slice(0,msgs.length-maxMessages);
+      excess.forEach(m=>{db.ref("messages/"+currentChat+"/"+m[0]).remove();});
+    }
+  });
 }
 
-// --- TYPING INDICATOR
+function leaveChat(){
+  if(!currentChat)return;
+  db.ref("chats/"+currentChat+"/members/"+myName).remove();
+  currentChat=null; chatDiv.innerHTML=""; chatDiv.style.display="none";document.getElementById("msg").style.display="none";document.getElementById("sendBtn").style.display="none";
+}
+
+// --- TYPING ---
 document.getElementById("msg").addEventListener("input",()=>{
-if(!currentChat) return;
-db.ref(`typing/${currentChat}/${myName}`).set(true);
-clearTimeout(typingTimeout);
-typingTimeout=setTimeout(()=>{db.ref(`typing/${currentChat}/${myName}`).remove();},1500);
+  if(!currentChat) return;
+  db.ref(`typing/${currentChat}/${myName}`).set(true);
+  clearTimeout(typingTimeout);
+  typingTimeout=setTimeout(()=>{db.ref(`typing/${currentChat}/${myName}`).remove();},1500);
 });
 function listenTyping(){
-db.ref(`typing/${currentChat}`).on("value",snap=>{
-const typingUsers=[];
-snap.forEach(s=>{if(s.key!==myName) typingUsers.push(s.key);});
-typingDiv.textContent=typingUsers.length?typingUsers.join(", ")+" is typing...": "";
-});
+  db.ref(`typing/${currentChat}`).on("value",snap=>{
+    const typingUsers=[];
+    snap.forEach(s=>{if(s.key!==myName) typingUsers.push(s.key);});
+    typingDiv.textContent=typingUsers.length?typingUsers.join(", ")+" is typing...": "";
+  });
+}
 
 // --- CHAT MODALS ---
 function submitCreateChat(){
-const name=document.getElementById("createChatName").value.trim(); if(!name)return;
-const code=Math.floor(10000+Math.random()*89999);
-db.ref(`chats/${code}`).set({name,members:{[myName]:true}});
-db.ref(`users/${myName}/myChats/${code}`).set(name);
-joinChat(code); closeCreateChat();
+  const name=document.getElementById("createChatName").value.trim(); if(!name)return;
+  const code=Math.floor(10000+Math.random()*89999);
+  db.ref(`chats/${code}`).set({name,members:{[myName]:true}});
+  db.ref(`users/${myName}/myChats/${code}`).set(name);
+  joinChat(code); closeCreateChat();
 }
 function submitJoinChat(){
-const code=document.getElementById("joinChatCode").value.trim(); if(!code)return;
-db.ref(`chats/${code}`).get().then(snap=>{
-if(!snap.exists()){alert("Chat not found");return;}
-db.ref(`users/${myName}/myChats/${code}`).set(snap.val().name);
-joinChat(code); closeJoinChat();
-});
+  const code=document.getElementById("joinChatCode").value.trim(); if(!code)return;
+  db.ref(`chats/${code}`).get().then(snap=>{
+    if(!snap.exists()){alert("Chat not found");return;}
+    db.ref(`users/${myName}/myChats/${code}`).set(snap.val().name);
+    joinChat(code); closeJoinChat();
+  });
+}
 
-// --- ACCOUNT MODAL CLEAN ---
+// --- ACCOUNT MODAL ---
 function openAccountModalClean(){
-const html=`<h3>Account Settings</h3>
-<div>Username: ${myName}</div>
-<input id="changeName" placeholder="Change username"/>
-<input id="changePassword" type="password" placeholder="Set/change password"/>
-<div>Pick Color:</div>
-${standardColors.map(c=>`<button onclick="setMyColor('${c}')"
-style="background:${c};color:#fff;margin:2px;"> </button>`).join('')}
-${myName==='Nether'?secretColors.map(c=>`<button onclick="setMyColor('${c}')"
-style="background:${c};color:#fff;margin:2px;"> </button>`).join(''):''}
-<div style="margin-top:10px;">
-<button onclick="openAddFriendModal()">Add Friend</button>
-<button onclick="openFriendRequests()">Friend Requests</button>
-<button onclick="openDMs()">DMs</button>
-<button onclick="saveAccountChanges()">Save</button>
-</div>`;
-document.getElementById("accountText").innerHTML=html;
-document.getElementById("accountModal").style.display="flex";
+  const html=`
+    <h3>Account Settings</h3>
+    <div>Username: ${myName}</div>
+    <input id="changeName" placeholder="Change username"/>
+    <input id="changePassword" type="password" placeholder="Password (optional)"/>
+    <div>Pick Color:</div>
+    ${standardColors.map(c=>`<button onclick="setMyColor('${c}')"
+      style="background:${c};color:#fff;margin:2px;"> </button>`).join('')}
+    ${myName==='Nether'?secretColors.map(c=>`<button onclick="setMyColor('${c}')"
+      style="background:${c};color:#fff;margin:2px;"> </button>`).join(''):''}
+    <div style="margin-top:10px;">
+      <button onclick="openAddFriendModal()">Add Friend</button>
+      <button onclick="openFriendRequests()">Friend Requests</button>
+      <button onclick="openDMs()">DMs</button>
+      <button onclick="saveAccountChanges()">Save</button>
+    </div>`;
+  document.getElementById("accountText").innerHTML=html;
+  document.getElementById("accountModal").style.display="flex";
 }
-function setMyColor(c){myColor=c;db.ref(`users/${myName}/color`).set(c);}
-function saveAccountChanges(){const n=document.getElementById("changeName").value.trim(); const p=document.getElementById("changePassword").value.trim(); if(n)myName=n; if(p)db.ref(`users/${myName}/password`).set(p); closeAccountModal();}
-
-// --- FRIENDS ---
-function openAddFriendModal(){document.getElementById("friendNameInput").value="";document.getElementById("friendModal").style.display="flex";}
-function closeFriendModal(){document.getElementById("friendModal").style.display="none";}
-function sendFriendRequest(){
-  const friend=document.getElementById("friendNameInput").value.trim();
-  if(!friend||friend===myName){alert("Invalid name"); return;}
-  db.ref(`users/${friend}/requests/${myName}`).set(true).then(()=>{alert("Request sent"); closeFriendModal();});
+function setMyColor(c){
+  if(secretColors.includes(c) && myName!=="Nether") return alert("You cannot use this color!");
+  myColor=c;
+  db.ref(`users/${myName}/color`).set(c);
 }
-function openFriendRequests(){document.getElementById("requestsList").innerHTML="";document.getElementById("requestsModal").style.display="flex";
-db.ref(`users/${myName}/requests`).get().then(snap=>{
-snap.forEach(req=>{
-const f=req.key;const div=document.createElement("div");div.textContent=f;
-const accept=document.createElement("button");accept.textContent="Accept";accept.onclick=()=>{db.ref(`users/${myName}/friends/${f}`).set(true); db.ref(`users/${f}/friends/${myName}`).set(true); db.ref(`users/${myName}/requests/${f}`).remove(); openFriendRequests();};
-const deny=document.createElement("button");deny.textContent="Deny";deny.onclick=()=>{db.ref(`users/${myName}/requests/${f}`).remove(); openFriendRequests();};
-div.appendChild(accept);div.appendChild(deny);
-document.getElementById("requestsList").appendChild(div);
-});
-});}
-function closeRequestsModal(){document.getElementById("requestsModal").style.display="none";}
-function openDMs(){document.getElementById("dmList").innerHTML="";document.getElementById("dmModal").style.display="flex";
-db.ref(`users/${myName}/friends`).get().then(snap=>{
-snap.forEach(f=>{
-const btn=document.createElement("button");btn.textContent=f.key;btn.onclick=()=>{const code=Math.floor(10000+Math.random()*89999); db.ref(`chats/${code}`).set({name:`DM: ${myName} & ${f.key}`,members:{[myName]:true,[f.key]:true}}); joinChat(code); closeDMModal();};
-document.getElementById("dmList").appendChild(btn);
-});
-});}
-function closeDMModal(){document.getElementById("dmModal").style.display="none";}
-</script>
-</body>
-</html>
-
-// All code from previous script sections can be merged here exactly as before
-
-</script>
-</body>
-</html>
+function saveAccountChanges(){
+  const n=document.getElementById("changeName").value.trim();
+  const p=document.getElementById("changePassword").value.trim();
+  if(n)myName=n;
+  if(p)db.ref(`users/${myName}/password`).set(p);
