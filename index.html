@@ -35,9 +35,9 @@ background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;}
 <div id="startupScreen">
   <h1>Welcome to Hyphon Chat</h1>
   <div>
-    <button onclick="accUI('Create')">Sign Up for Free</button>
+    <button onclick="startAcc('Create')">Sign Up for Free</button>
     <br>
-    <button onclick="accUI('Login')">Already have an account? Log In</button>
+    <button onclick="startAcc('Login')">Already have an account? Log In</button>
   </div>
 </div>
 
@@ -78,6 +78,11 @@ const db=firebase.database();
 let me=null,myColor="#3498db",myPfp="",curChat=null;
 
 // --- Account UI ---
+function startAcc(type){
+  document.getElementById("startupScreen").style.display="none"; // hide startup first
+  accUI(type);
+}
+
 function accUI(type){
   let box=document.getElementById("accBox");
   let modal=document.getElementById("accModal");
@@ -126,16 +131,16 @@ function accUI(type){
 function opn(id){document.getElementById(id).style.display="flex";}
 function cls(id){document.getElementById(id).style.display="none";}
 
-// --- Placeholder account functions (your existing doCreate/doLogin/etc go here) ---
-function doCreate(){alert("Sign up logic here");document.getElementById("startupScreen").style.display="none";me=document.getElementById("newName").value;}
-function doLogin(){alert("Login logic here");document.getElementById("startupScreen").style.display="none";me=document.getElementById("logName").value;}
+// --- Placeholder account functions ---
+function doCreate(){alert("Sign up logic here");me=document.getElementById("newName").value;cls('accModal');}
+function doLogin(){alert("Login logic here");me=document.getElementById("logName").value;cls('accModal');}
 function logout(){me=null;alert("Logged out");}
 function chgName(){alert("Changed name");}
 function chgPfp(){alert("Changed PFP");}
 function chgCol(){alert("Changed color");}
 function sendFriendReq(){alert("Send friend request logic here");}
 
-// --- Chats (placeholders for now, keep untouched) ---
+// --- Chats ---
 function mkChat(){opn('mkModal');}
 function jnChat(){opn('jnModal');}
 function subMk(){alert("Chat created");cls('mkModal');}
