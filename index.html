@@ -20,17 +20,15 @@
   <button onclick="send()">Send</button>
 
   <script>
-async function query(prompt) {
-  const resp = await fetch("/chat.js", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt })
-  });
-  const data = await resp.json();
-  return data.reply;
-}
-
-
+    async function query(prompt) {
+      const resp = await fetch("/chat.js", { // serverless proxy path
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt })
+      });
+      const data = await resp.json();
+      return data.reply;
+    }
 
     async function send() {
       const msg = document.getElementById("msg").value;
@@ -38,7 +36,7 @@ async function query(prompt) {
       addLine("You: " + msg, "user");
       document.getElementById("msg").value = "";
 
-      const botLine = addLine("AI: …", "bot loading"); // temporary loading
+      const botLine = addLine("AI: …", "bot loading");
       const reply = await query(msg);
       updateLast("AI: " + reply, botLine);
     }
