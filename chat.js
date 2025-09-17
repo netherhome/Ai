@@ -9,7 +9,7 @@ export default async function handler(req, res) {
       {
         method: "POST",
         headers: {
-          "Authorization": "Bearer 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", // <-- replace with your Hugging Face token
+          "Authorization": "Bearer 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", // replace with your token
           "Content-Type": "application/json"
         },
         body: JSON.stringify({ inputs: prompt })
@@ -17,8 +17,11 @@ export default async function handler(req, res) {
     );
 
     const data = await response.json();
+    
     let reply = "No response";
-    if (data?.[0]?.generated_text) reply = data[0].generated_text;
+    // BlenderBot returns generated_text directly or in an array with key generated_text
+    if (Array.isArray(data) && data[0]?.generated_text) reply = data[0].generated_text;
+    else if (data.generated_text) reply = data.generated_text;
     else if (data?.error) reply = "AI ERROR: " + data.error;
 
     res.status(200).json({ reply });
