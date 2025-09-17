@@ -94,11 +94,10 @@ let myName="", myColor="#1abc9c";
 let currentChat=null;
 const chatDiv=document.getElementById("chat");
 const typingDiv=document.getElementById("typingDiv");
-const maxMessages=40;
-const standardColors=["#1abc9c","#3498db","#e74c3c","#f1c40f","#9b59b6"];
-const secretColors=["linear-gradient(45deg,#ff6ec4,#7873f5)","linear-gradient(45deg,#00f260,#0575e6)","linear-gradient(45deg,#ff512f,#dd2476)"];
 let lastUser=null,lastTime=0;
 let chatListener=null,typingTimeout;
+const standardColors=["#1abc9c","#3498db","#e74c3c","#f1c40f","#9b59b6"];
+const secretColors=["linear-gradient(45deg,#ff6ec4,#7873f5)","linear-gradient(45deg,#00f260,#0575e6)","linear-gradient(45deg,#ff512f,#dd2476)"];
 
 // --- Startup Buttons ---
 document.getElementById("makeAccountBtn").addEventListener("click",()=>{document.getElementById("accountText").innerText="Create Account";document.getElementById("accountModal").style.display="flex";});
@@ -180,7 +179,7 @@ function joinChat(code){
   chatDiv.innerHTML="";
   db.ref(`messages/${currentChat}`).push({text:`${myName} joined the chat (${code})`,user:"system",timestamp:Date.now()});
   chatListener=db.ref(`messages/${currentChat}`);
-  chatListener.on("child_added",snap=>{renderMessage(snap.key,snap.val());pruneMessages();});
+  chatListener.on("child_added",snap=>{renderMessage(snap.key,snap.val());});
   listenTyping();
 }
 function leaveChat(){
@@ -224,7 +223,6 @@ function sendMessage(){
 }
 function deleteMsg(key){if(!key||!currentChat)return;db.ref(`messages/${currentChat}/${key}`).remove();}
 function editMsg(key){if(!key||!currentChat)return;const t=prompt("Edit your message:");if(t)db.ref(`messages/${currentChat}/${key}/text`).set(t);}
-function pruneMessages(){db.ref("messages/"+currentChat).get().then(snap=>{const msgs=Object.entries(snap.val()||{});if(msgs.length>maxMessages){msgs.slice(0,msgs.length-maxMessages).forEach(m=>db.ref(`messages/${currentChat}/${m[0]}`).remove());}});}
 function formatTime(ts){const d=new Date(ts);let h=d.getHours(),m=d.getMinutes();if(h===0)h=12;if(h>12)h-=12;m=m<10?"0"+m:m;return h+":"+m;}
 document.getElementById("msg").addEventListener("input",()=>{
   if(!currentChat)return;
@@ -238,7 +236,7 @@ function listenTyping(){db.ref(`typing/${currentChat}`).on("value",snap=>{const 
 function toggleFriendsMenu(){const f=document.getElementById("friendsMenu");f.style.display=f.style.display==="flex"?"none":"flex";}
 function openAddFriendModal(){const f=prompt("Enter friend's username:");if(!f)return;if(f===myName){alert("Cannot add yourself.");return;}db.ref(`users/${f}/requests/${myName}`).set(true);alert("Friend request sent!");}
 function openFriendRequests(){db.ref(`users/${myName}/requests`).get().then(snap=>{if(!snap.exists()){alert("No friend requests");return;}const reqs=Object.keys(snap.val());const sel=prompt("Requests: "+reqs.join(", ")+"\nType name to accept or leave blank:");if(sel&&reqs.includes(sel)){db.ref(`users/${myName}/friends/${sel}`).set(true);db.ref(`users/${sel}/friends/${myName}`).set(true);db.ref(`users/${myName}/requests/${sel}`).remove();alert("Friend added!");}});}
-function openDMs(){db.ref(`users/${myName}/friends`).get().then(snap=>{if(!snap.exists()){alert("No friends");return;}const friends=Object.keys(snap.val());const sel=prompt("Friends: "+friends.join(", ")+"\nType name to DM:");if(sel&&friends.includes(sel)){const code=Math.floor(10000+Math.random()*89999);db.ref(`users/${myName}/dms/${code}`).set(sel);db.ref(`users/${sel}/dms/${code}`).set(myName);joinChat(code);}}}
+function openDMs(){db.ref(`users/${myName}/friends`).get().then(snap=>{if(!snap.exists()){alert("No friends");return;}const friends=Object.keys(snap.val());const sel=prompt("Friends: "+friends.join(", ")+"\nType name to DM:");if(sel&&friends.includes(sel)){const code=Math.floor(10000+Math.random()*89999);db.ref(`users/${myName}/dms/${code}`).set(sel);db.ref(`users/${sel}/dms/${code}`).set(myName);joinChat(code);}})}
 
 // --- Modals ---
 function closeModal(){document.getElementById("modal").style.display="none";}
