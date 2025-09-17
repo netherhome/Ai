@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Insane AI Chat</title>
+  <style>
+    body { font-family:sans-serif; background:#0a0a0a; color:#eee; text-align:center; padding:20px; }
+    #chat { border:1px solid #444; padding:10px; max-width:600px; margin:auto; height:400px; overflow-y:auto; text-align:left; background:#111; }
+    textarea { width:80%; height:50px; background:#222; color:#fff; border:1px solid #555; padding:5px; }
+    button { padding:10px; margin:10px; background:#0ff; border:none; cursor:pointer; }
+    .user { color:#0f0; margin:5px 0; }
+    .bot { color:#0ff; margin:5px 0; }
+  </style>
+</head>
+<body>
+  <h1>🤖 Hugging Face AI Chatbot</h1>
+  <div id="chat"></div>
+  <textarea id="msg" placeholder="Type a message..."></textarea><br>
+  <button onclick="send()">Send</button>
+
+  <script>
+    const HF_TOKEN = "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"; // your token
+    const MODEL = "gpt2"; // free, small, works for browser demo
+
+    async function query(prompt) {
+      const resp = await fetch("https://api-inference.huggingface.co/models/" + MODEL, {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + HF_TOKEN,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ inputs: prompt })
+      });
+      return await resp.json();
+    }
+
+    async function send() {
+      const msg = document.getElementById("msg").value;
+      if(!msg.trim()) return;
+      addLine("You: " + msg, "user");
+      document.getElementById("msg").value = "";
+      addLine("AI: ...", "bot");
+
+      const data = await query(msg);
+      let reply = (typeof data === "string") ? data : (data?.[0]?.generated_text || JSON.stringify(data));
+      if(reply.startsWith(msg)) reply = reply.slice(msg.length);
+      updateLast("AI: " + reply.trim(), "bot");
+    }
+
+    function addLine(text, cls){
+      const div = document.createElement("div");
+      div.className = cls;
+      div.textContent = text;
+      document.getElementById("chat").appendChild(div);
+      document.getElementById("chat").scrollTop = 99999;
+    }
+
+    function updateLast(text, cls){
+      const chat = document.getElementById("chat");
+      chat.lastChild.textContent = text;
+    }
+  </script>
+</body>
+</html>
