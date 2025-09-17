@@ -227,6 +227,8 @@ function renderMessage(key,data){
   chatDiv.appendChild(div);
   chatDiv.scrollTop=chatDiv.scrollHeight;
 }
+
+// --- Send Message ---
 function sendMessage(){
   if(!currentChat)return;
   const text=document.getElementById("msg").value.trim();if(!text)return;
@@ -246,18 +248,16 @@ function deleteMsg(key){db.ref(`messages/${currentChat}/${key}`).remove();}
 function listenTyping(){
   document.getElementById("msg").addEventListener("input",()=>{indicateTyping(true);clearTimeout(typingTimeout);typingTimeout=setTimeout(()=>{indicateTyping(false);},2000);});
 }
-function indicateTyping(state){
-  typingDiv.textContent=state?`${myName} is typing...`:"";
-}
+function indicateTyping(state){typingDiv.textContent=state?`${myName} is typing...`:"";}
 
 // --- Time Format ---
 function formatTime(ts){const d=new Date(ts);return d.getHours()+":"+("0"+d.getMinutes()).slice(-2);}
 
-// --- Friends / DMs placeholders (real-time can be implemented similarly) ---
+// --- Friends / DMs ---
 function toggleFriendsMenu(){const fm=document.getElementById("friendsMenu");fm.style.display=fm.style.display==="flex"?"none":"flex";}
-function openAddFriendModal(){alert("Add Friend modal");}
-function openFriendRequests(){alert("Friend Requests modal");}
-function openDMs(){alert("DMs modal");}
+function openAddFriendModal(){alert("Add Friend modal (to implement)");}
+function openFriendRequests(){alert("Friend Requests modal (to implement)");}
+function openDMs(){alert("DMs modal (to implement)");}
 
 </script>
 </body>
