@@ -21,7 +21,7 @@
 
   <script>
     async function query(prompt) {
-      const resp = await fetch("/api/chat", {
+    const resp = await fetch("/chat.js", { ... })
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt })
