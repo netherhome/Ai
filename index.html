@@ -100,7 +100,7 @@ const secretColors=["linear-gradient(45deg,#ff6ec4,#7873f5)","linear-gradient(45
 let lastUser=null,lastTime=0;
 let chatListener=null,typingTimeout;
 
-// ------------------ Helper Functions ------------------
+// --- Helper Functions ---
 function showModalText(t){document.getElementById("modalText").innerText=t;document.getElementById("modal").style.display="flex";}
 function closeModal(){document.getElementById("modal").style.display="none";}
 function closeAccountModal(){document.getElementById("accountModal").style.display="none";}
@@ -108,7 +108,7 @@ function toggleFriendsMenu(){const m=document.getElementById("friendsMenu");m.st
 function setMode(dark){document.body.style.background=dark?"#111":"#f5f5f5";document.body.style.color=dark?"#eee":"#111";chatDiv.style.background=dark?"#222":"#ddd";}
 function toggleMode(){setMode(document.body.style.background!=="#111");}
 
-// ------------------ Account ------------------
+// --- Account System ---
 function makeAccountUI(){document.getElementById("accountText").innerText="Create Account";document.getElementById("accountModal").style.display="flex";}
 function openAccountUI(){document.getElementById("accountText").innerText="Open Account";document.getElementById("accountModal").style.display="flex";}
 function submitAccount(){
@@ -120,7 +120,7 @@ function submitAccount(){
     if(isCreating){
       if(snap.exists()){alert("Name taken!");return;}
       myName=name; myColor=standardColors[0];
-      db.ref("users/"+myName).set({password:pass,color:myColor,myChats:{}});startChatUI();
+      db.ref("users/"+myName).set({password:pass,color:myColor,myChats:{},friends:{},requests:{},dms:{}});startChatUI();
     } else {
       if(!snap.exists()){alert("User not found");return;}
       const stored=snap.val();
@@ -131,7 +131,7 @@ function submitAccount(){
   });
 }
 
-// ------------------ Chat ------------------
+// --- Chat & Messages ---
 function startChatUI(){document.getElementById("startup").style.display="none";document.getElementById("chatUI").style.display="flex";}
 function showNewChat(){document.getElementById("newChatModal").style.display="flex";}
 function closeNewChat(){document.getElementById("newChatModal").style.display="none";}
@@ -162,9 +162,7 @@ function joinChat(code){
   document.getElementById("msg").style.display="block";
   document.getElementById("sendBtn").style.display="inline-block";
   chatDiv.innerHTML="";
-  // send join message
   db.ref(`messages/${currentChat}`).push({text:`${myName} joined the chat (${code})`,user:"system",timestamp:Date.now()});
-  // listen messages
   chatListener=db.ref(`messages/${currentChat}`);
   chatListener.on("child_added",snap=>{renderMessage(snap.key,snap.val());pruneMessages();});
   listenTyping();
@@ -174,8 +172,6 @@ function leaveChat(){
   db.ref("chats/"+currentChat+"/members/"+myName).remove();
   currentChat=null; chatDiv.innerHTML=""; chatDiv.style.display="none";document.getElementById("msg").style.display="none";document.getElementById("sendBtn").style.display="none";
 }
-
-// ------------------ Messages ------------------
 function renderMessage(key,data){
   const div=document.createElement("div");
   const isMe=data.user===myName;
@@ -202,21 +198,16 @@ function renderMessage(key,data){
   chatDiv.appendChild(div);
   chatDiv.scrollTop=chatDiv.scrollHeight;
 }
-
 function sendMessage(){
   if(!currentChat)return;
   const text=document.getElementById("msg").value.trim();if(!text)return;
   db.ref(`messages/${currentChat}`).push({text,user:myName,color:myColor,timestamp:Date.now()});
   document.getElementById("msg").value="";
 }
-
 function deleteMsg(key){if(!key||!currentChat)return;db.ref(`messages/${currentChat}/${key}`).remove();}
 function editMsg(key){if(!key||!currentChat)return;const t=prompt("Edit your message:");if(t)db.ref(`messages/${currentChat}/${key}/text`).set(t);}
-
 function pruneMessages(){db.ref("messages/"+currentChat).get().then(snap=>{const msgs=Object.entries(snap.val()||{});if(msgs.length>maxMessages){msgs.slice(0,msgs.length-maxMessages).forEach(m=>db.ref(`messages/${currentChat}/${m[0]}`).remove());}});}
 function formatTime(ts){const d=new Date(ts);let h=d.getHours(),m=d.getMinutes();if(h===0)h=12;if(h>12)h-=12;m=m<10?"0"+m:m;return h+":"+m;}
-
-// ------------------ Typing ------------------
 document.getElementById("msg").addEventListener("input",()=>{
   if(!currentChat)return;
   db.ref(`typing/${currentChat}/${myName}`).set(true);
@@ -225,11 +216,38 @@ document.getElementById("msg").addEventListener("input",()=>{
 });
 function listenTyping(){db.ref(`typing/${currentChat}`).on("value",snap=>{const arr=[];snap.forEach(s=>{if(s.key!==myName)arr.push(s.key);});typingDiv.textContent=arr.length?arr.join(", ")+" is typing...":"";});
 
-// ------------------ Friends / DMs ------------------
-function openAddFriendModal(){showModalText("Add Friend UI (implement)");}
-function openFriendRequests(){showModalText("Friend Requests UI (implement)");}
-function openDMs(){showModalText("DM UI (implement)");}
-
+// --- Friends / Requests / DMs ---
+function openAddFriendModal(){
+  const f=prompt("Enter friend's username:");if(!f)return;
+  if(f===myName){alert("Cannot add yourself.");return;}
+  db.ref(`users/${f}/requests/${myName}`).set(true);alert("Friend request sent!");
+}
+function openFriendRequests(){
+  db.ref(`users/${myName}/requests`).get().then(snap=>{
+    if(!snap.exists()){alert("No friend requests");return;}
+    const reqs=Object.keys(snap.val());
+    const sel=prompt("Requests: "+reqs.join(", ")+"\nType name to accept or leave blank to ignore:");
+    if(sel&&reqs.includes(sel)){
+      db.ref(`users/${myName}/friends/${sel}`).set(true);
+      db.ref(`users/${sel}/friends/${myName}`).set(true);
+      db.ref(`users/${myName}/requests/${sel}`).remove();
+      alert("Friend added!");
+    }
+  });
+}
+function openDMs(){
+  db.ref(`users/${myName}/friends`).get().then(snap=>{
+    if(!snap.exists()){alert("No friends");return;}
+    const friends=Object.keys(snap.val());
+    const sel=prompt("Friends: "+friends.join(", ")+"\nType name to DM:");
+    if(sel&&friends.includes(sel)){
+      const code=Math.floor(10000+Math.random()*89999);
+      db.ref(`users/${myName}/dms/${code}`).set(sel);
+      db.ref(`users/${sel}/dms/${code}`).set(myName);
+      joinChat(code);
+    }
+  });
+}
 </script>
 </body>
 </html>
