@@ -5,20 +5,21 @@
 <title>HyphonChat</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 <style>
-:root{--bg-dark:#111;--text-dark:#eee;--bg-light:#f5f5f5;--text-light:#111;}
+:root{--bg-dark:#111;--text-dark:#eee;}
 body{font-family:'Inter',sans-serif;margin:0;padding:0;background:var(--bg-dark);color:var(--text-dark);}
 #startupScreen{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#3498db,#9b59b6);color:#fff;z-index:20;}
 #chatUI{display:none;flex-direction:column;padding:20px;box-sizing:border-box;height:100vh;}
 #chatContainer{display:flex;flex-direction:column;width:100%;max-width:900px;flex:1;margin:0 auto;}
 #chat{border:1px solid #444;padding:10px;height:400px;overflow-y:auto;border-radius:12px;background:#222;flex:1;display:flex;flex-direction:column;scroll-behavior:smooth;}
-textarea{width:100%;max-width:90%;height:50px;padding:10px;border-radius:8px;border:1px solid #555;margin-top:10px;resize:none;display:block;font-weight:bold;background:linear-gradient(135deg,#3498db,#2980b9);color:#fff;}
+textarea{width:100%;height:50px;padding:10px;border-radius:8px;border:1px solid #555;margin-top:10px;font-weight:bold;background:linear-gradient(135deg,#3498db,#2980b9);color:#fff;resize:none;}
 button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:pointer;background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;font-weight:600;}
 /* Messages */
-.messageRow{display:flex;align-items:flex-end;margin:6px 0;max-width:80%;}
-.messageRow.right{margin-left:auto;flex-direction:row-reverse;}
-.messageRow img{width:32px;height:32px;border-radius:50%;margin:0 6px;}
+.msgRow{display:flex;align-items:flex-start;margin:6px 0;max-width:80%;}
+.msgRow.right{margin-left:auto;flex-direction:row-reverse;}
+.pfp{width:32px;height:32px;border-radius:50%;margin:0 6px;}
+.nameAndBubble{display:flex;flex-direction:column;}
 .username{font-size:12px;color:#bbb;margin:0 6px;}
-.msgBubble{padding:8px 12px;border-radius:12px;word-wrap:break-word;max-width:260px;}
+.msgBubble{padding:8px 12px;border-radius:12px;word-wrap:break-word;max-width:240px;}
 .joinMsg{color:#aaa;text-align:center;font-style:italic;margin:5px 0;}
 .timestamp{font-size:10px;color:#ccc;margin-left:5px;}
 /* Modals */
@@ -26,6 +27,8 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 .modalContent{background:linear-gradient(135deg,#3498db,#2980b9);color:#fff;padding:20px;border-radius:12px;text-align:center;min-width:250px;}
 .modalContent input{padding:8px;margin:8px;border-radius:6px;border:none;}
 .modalContent button{margin-top:5px;padding:8px 12px;}
+.headerBtns{display:flex;justify-content:center;margin-bottom:10px;}
+.headerBtns button{margin:0 5px;}
 </style>
 </head>
 <body>
@@ -38,17 +41,14 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
   </div>
 </div>
 
-<header style="display:none;" id="mainHeader">
-  <div>
-    <button onclick="accUI('Settings')">Account</button>
-    <button onclick="openChats()">My Chats</button>
-    <button onclick="newChat()">New Chat</button>
-    <button onclick="leaveChat()">Leave Chat</button>
-    <button onclick="openDMs()">DMs</button>
-  </div>
-</header>
-
 <div id="chatUI">
+  <div class="headerBtns">
+    <button id="accBtn">Account</button>
+    <button id="chatsBtn">My Chats</button>
+    <button id="newChatBtn">New Chat</button>
+    <button id="leaveBtn">Leave Chat</button>
+    <button id="dmsBtn">DMs</button>
+  </div>
   <div id="chatContainer">
     <div id="chat"></div>
     <textarea id="msg" placeholder="Type your message..."></textarea>
@@ -69,19 +69,18 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script>
-// Firebase
+// Firebase setup
 const fb={apiKey:"AIzaSyCSh6K8e_CAswGyYuIvgMVKZ3T8b5gGKFU",authDomain:"hyphonchat.firebaseapp.com",databaseURL:"https://hyphonchat-default-rtdb.firebaseio.com",projectId:"hyphonchat",storageBucket:"hyphonchat.firebasestorage.app",messagingSenderId:"172774813412",appId:"1:172774813412:web:8d307b6a170bf270cfc6f1"};
 firebase.initializeApp(fb);
 const db=firebase.database();
 
-// Vars
 let me="", myColor="#1abc9c", myPfp="https://th.bing.com/th/id/OIP.Xx93W3aTtFensmWsSFuDYAHaHa?w=202&h=202";
-let currentChat=null, chatListener=null, typingTimeout;
+let currentChat=null, listener=null, typingTimeout;
 const chatDiv=document.getElementById("chat");
 
 // Startup
-document.addEventListener("DOMContentLoaded", ()=>{
-  document.getElementById("signupBtn").addEventListener("click", ()=>{
+document.addEventListener("DOMContentLoaded",()=>{
+  document.getElementById("signupBtn").addEventListener("click",()=>{
     accUI('Create');
     document.getElementById("startupScreen").style.display="none";
   });
@@ -91,33 +90,38 @@ document.addEventListener("DOMContentLoaded", ()=>{
 function accUI(type){
   const accModal=document.getElementById("accModal");
   const accBox=document.getElementById("accBox");
-
-  if(type==="Login"||type==="Create"){
-    const switchBtn = type==="Create" ?
+  if(type==="Create"||type==="Login"){
+    const switchBtn = type==="Create" ? 
       `<button onclick="accUI('Login')" style="background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;margin-top:6px;">Already have an account? Log In</button>` :
       `<button onclick="accUI('Create')" style="background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;margin-top:6px;">Don't have an account? Sign Up</button>`;
     accBox.innerHTML=`
       <h3>${type} Account</h3>
       <input id="accName" placeholder="Name">
       <input id="accPass" type="password" placeholder="Password">
-      <button onclick="subAcc('${type}')" style="background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;font-weight:600;">Submit</button>
+      <button onclick="subAcc('${type}')" style="background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;">Submit</button>
       ${switchBtn}
-      <button onclick="accModal.style.display='none'" style="background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;font-weight:600;">X</button>`;
+      <button onclick="accModal.style.display='none'">X</button>`;
     accModal.style.display="flex";
-    return;
+  } else {
+    accBox.innerHTML=`
+      <h3>Account Settings</h3>
+      <img src="${myPfp}" width="64" height="64" style="border-radius:50%"><br>
+      <input id="newPfp" placeholder="New PFP URL"><button onclick="chgPfp()">Save</button><br>
+      <label>Pick Color:</label><br>`;
+    ["#1abc9c","#3498db","#e74c3c","#f1c40f","#9b59b6"].forEach(c=>{
+      accBox.innerHTML+=`<button onclick="setCol('${c}')" style="background:${c};width:24px;height:24px;margin:2px;border:none;"></button>`;
+    });
+    if(me==="Nether"){
+      ["linear-gradient(45deg,#ff6ec4,#7873f5)","linear-gradient(45deg,#00f260,#0575e6)"].forEach(c=>{
+        accBox.innerHTML+=`<button onclick="setCol('${c}')" style="background:${c};width:24px;height:24px;margin:2px;border:none;"></button>`;
+      });
+    }
+    accBox.innerHTML+=`
+      <div style="margin-top:10px;">
+        <button onclick="cls('accModal')">Close</button>
+      </div>`;
+    accModal.style.display="flex";
   }
-
-  // Account settings
-  accBox.innerHTML=`
-    <h3>Account Settings</h3>
-    <div><img src="${myPfp}" width=64 height=64 style="border-radius:50%"></div>
-    <p>Username: ${me}</p>
-    <label>Profile Pic URL:</label><input id="newP"><button onclick="chgPfp()">Save</button><br>
-    <label>Msg Color:</label><input id="newC" type="color" value="${myColor}"><button onclick="chgCol()">Save</button><br>
-    <button onclick="opn('friendReqModal')">Friend Requests</button>
-    <button onclick="opn('dmsModal')">DMs</button>
-    <button onclick="cls('accModal')">X</button>`;
-  accModal.style.display="flex";
 }
 
 function subAcc(type){
@@ -125,92 +129,131 @@ function subAcc(type){
   const p=document.getElementById("accPass").value;
   if(!n) return alert("Enter name");
   db.ref("users/"+n).get().then(s=>{
-    if(type=="Create"){
+    if(type==="Create"){
       if(s.exists()) return alert("Name taken!");
       me=n;
-      db.ref("users/"+n).set({color:myColor,password:p||null,myChats:{},friends:{},pfp:myPfp});
+      db.ref("users/"+n).set({color:myColor,password:p||null,pfp:myPfp,myChats:{}});
       startChatUI();
-      document.getElementById("accModal").style.display='none';
     } else {
       if(!s.exists()) return alert("Name not found!");
-      if(s.val().password && s.val().password!==p) return alert("Incorrect password!");
-      me=n; myColor=s.val().color||myColor; myPfp=s.val().pfp||myPfp;
+      if(s.val().password && s.val().
+        alert("Wrong password!");
+        return;
+      }
+      me=n;
+      myColor=s.val().color||myColor;
+      myPfp=s.val().pfp||myPfp;
       startChatUI();
-      document.getElementById("accModal").style.display='none';
     }
   });
 }
 
 function startChatUI(){
+  document.getElementById("startupScreen").style.display="none";
   document.getElementById("chatUI").style.display="flex";
-  document.getElementById("mainHeader").style.display="block";
-  chatDiv.innerHTML="";
-  document.getElementById("msg").value="";
 }
 
-// Create chat
+// Change PFP
+function chgPfp(){
+  const url=document.getElementById("newPfp").value;
+  if(url){
+    myPfp=url;
+    db.ref("users/"+me+"/pfp").set(url);
+    alert("Updated!");
+  }
+}
+
+// Change Color
+function setCol(c){
+  myColor=c;
+  db.ref("users/"+me+"/color").set(c);
+  alert("Color changed!");
+}
+
+// Close modal
+function cls(id){document.getElementById(id).style.display="none";}
+
+// Chat Functions
+function mkChat(){cls('newModal');document.getElementById("mkModal").style.display="flex";}
+function jnChat(){cls('newModal');document.getElementById("jnModal").style.display="flex";}
 function subMk(){
-  const n=document.getElementById("mkName").value.trim();
-  if(!n)return;
-  const code=Math.floor(10000+Math.random()*89999);
-  db.ref("chats/"+code).set({name:n,members:{[me]:true}});
-  db.ref("users/"+me+"/myChats/"+code).set(n);
-  joinChat(code);
-  db.ref("chats/"+code+"/msgs").push({sys:true,t:"["+code+"] "+me+" Joined"});
+  const name=document.getElementById("mkName").value.trim();
+  if(!name) return;
+  const key=db.ref("chats").push().key;
+  db.ref("chats/"+key).set({name:name,messages:[]});
+  joinChat(key);
   cls('mkModal');
 }
-
-// Join chat
 function subJn(){
-  const c=document.getElementById("jnCode").value.trim();
-  if(!c)return;
-  db.ref("chats/"+c).get().then(s=>{
-    if(!s.exists()) return alert("Chat not found");
-    db.ref("users/"+me+"/myChats/"+c).set(s.val().name);
-    joinChat(c);
-    db.ref("chats/"+c+"/msgs").push({sys:true,t:"["+c+"] "+me+" Joined"});
-    cls('jnModal');
-  });
+  const code=document.getElementById("jnCode").value.trim();
+  if(!code) return;
+  joinChat(code);
+  cls('jnModal');
 }
 
-// Join chat
 function joinChat(code){
-  currentChat=code; chatDiv.innerHTML="";
-  if(chatListener) db.ref("chats/"+code+"/msgs").off("child_added",chatListener);
-  chatListener=db.ref("chats/"+code+"/msgs").on("child_added",snap=>{
+  currentChat=code;
+  if(listener) listener.off();
+  chatDiv.innerHTML="";
+  listener=db.ref("chats/"+code+"/messages");
+  listener.on("child_added",snap=>{
     const m=snap.val();
-    if(m.sys){
-      const j=document.createElement("div"); j.className="joinMsg"; j.textContent=m.t; chatDiv.appendChild(j);
-    } else {
-      const row=document.createElement("div"); row.className="messageRow "+(m.u===me?"right":"");
-      const img=document.createElement("img"); img.src=m.pic||myPfp;
-      const name=document.createElement("div"); name.className="username"; name.textContent=m.u;
-      const bubble=document.createElement("div"); bubble.className="msgBubble";
-      if(m.u==="Nether" && m.c && m.c.includes("gradient")) bubble.style.background=m.c;
-      else bubble.style.background=m.c||"#333";
-      bubble.textContent=m.t;
-      row.appendChild(img); row.appendChild(name); row.appendChild(bubble);
-      chatDiv.appendChild(row); chatDiv.scrollTop=chatDiv.scrollHeight;
-    }
+    addMsg(m.user,m.txt,m.color,m.pfp,m.time);
   });
+  // join message
+  const msg={user:"SYSTEM",txt:`[${code}] ${me} Joined`,color:"#aaa",pfp:"",time:Date.now()};
+  db.ref("chats/"+code+"/messages").push(msg);
 }
 
-// Send
-document.getElementById("sendBtn").onclick=()=>{
-  if(!currentChat)return;
-  const txt=document.getElementById("msg").value.trim();
-  if(!txt)return;
+document.getElementById("sendBtn").addEventListener("click",sendMsg);
+function sendMsg(){
+  const t=document.getElementById("msg").value.trim();
+  if(!t||!currentChat) return;
+  const msg={user:me,txt:t,color:myColor,pfp:myPfp,time:Date.now()};
+  db.ref("chats/"+currentChat+"/messages").push(msg);
   document.getElementById("msg").value="";
-  db.ref("chats/"+currentChat+"/msgs").push({u:me,t:txt,c:myColor,pic:myPfp});
-};
+}
 
-function leaveChat(){currentChat=null;chatDiv.innerHTML="";}
+// Render Messages
+function addMsg(user,txt,color,pfp,time){
+  if(user==="SYSTEM"){
+    const d=document.createElement("div");
+    d.className="joinMsg";
+    d.innerText=txt;
+    chatDiv.appendChild(d);
+    chatDiv.scrollTop=chatDiv.scrollHeight;
+    return;
+  }
+  const row=document.createElement("div");
+  row.className="msgRow"+(user===me?" right":"");
+  const img=document.createElement("img");
+  img.src=pfp; img.className="pfp";
+  const wrap=document.createElement("div");
+  wrap.className="nameAndBubble";
+  const name=document.createElement("div");
+  name.className="username"; name.innerText=user;
+  const bubble=document.createElement("div");
+  bubble.className="msgBubble";
+  bubble.style.background=color;
+  bubble.innerText=txt;
+  const timeEl=document.createElement("span");
+  timeEl.className="timestamp";
+  timeEl.innerText=new Date(time).toLocaleTimeString();
+  name.appendChild(timeEl);
+  wrap.appendChild(name);
+  wrap.appendChild(bubble);
+  row.appendChild(img);
+  row.appendChild(wrap);
+  chatDiv.appendChild(row);
+  chatDiv.scrollTop=chatDiv.scrollHeight;
+}
 
-// Helpers
-function cls(id){document.getElementById(id).style.display="none";}
-function opn(id){document.getElementById(id).style.display="flex";}
-function chgPfp(){const v=document.getElementById("newP").value;if(v){myPfp=v;db.ref("users/"+me+"/pfp").set(v);}}
-function chgCol(){const v=document.getElementById("newC").value;if(v){if(v.includes("gradient")&&me!=="Nether")return alert("Not allowed");myColor=v;db.ref("users/"+me+"/color").set(v);}}
+// Header buttons
+document.getElementById("accBtn").onclick=()=>accUI("Settings");
+document.getElementById("chatsBtn").onclick=()=>document.getElementById("chatsModal").style.display="flex";
+document.getElementById("newChatBtn").onclick=()=>document.getElementById("newModal").style.display="flex";
+document.getElementById("leaveBtn").onclick=()=>{currentChat=null;chatDiv.innerHTML="";};
+document.getElementById("dmsBtn").onclick=()=>document.getElementById("dmsModal").style.display="flex";
 </script>
 </body>
 </html>
