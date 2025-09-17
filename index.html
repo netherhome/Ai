@@ -13,8 +13,8 @@ body{font-family:'Inter',sans-serif;margin:0;padding:0;background:var(--bg-dark)
 #chat{border:1px solid #444;padding:10px;height:400px;overflow-y:auto;border-radius:12px;background:#222;flex:1;display:none;flex-direction:column;}
 textarea{width:100%;max-width:80%;height:50px;padding:10px;border-radius:8px;border:1px solid #555;margin-top:10px;resize:none;display:none;}
 button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:pointer;}
-.userBubble{padding:8px 12px;border-radius:15px;margin:5px 0;max-width:70%;word-wrap:break-word;align-self:flex-end;color:#fff;font-weight:500;position:relative;}
-.friendBubble{padding:8px 12px;border-radius:15px;margin:5px 0;max-width:70%;word-wrap:break-word;align-self:flex-start;color:#fff;font-weight:500;position:relative;}
+.userBubble{padding:8px 12px;border-radius:15px;margin:2px 0;max-width:70%;word-wrap:break-word;align-self:flex-end;color:#fff;font-weight:500;position:relative;}
+.friendBubble{padding:8px 12px;border-radius:15px;margin:2px 0;max-width:70%;word-wrap:break-word;align-self:flex-start;color:#fff;font-weight:500;position:relative;}
 .joinMsg{color:#aaa;text-align:center;font-style:italic;margin:5px 0;}
 .timestamp{font-size:10px;color:#ccc;margin-left:5px;}
 #toggleMode{position:absolute;top:10px;right:10px;padding:5px 10px;border-radius:6px;}
@@ -25,6 +25,8 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 .editDelete{position:absolute;top:-5px;right:-5px;display:none;gap:4px;}
 .editDelete button{padding:2px 5px;font-size:12px;border-radius:4px;}
 .typingIndicator{font-style:italic;color:#aaa;font-size:12px;margin:3px 0;}
+.usernameLabel{font-weight:bold;margin-top:8px;margin-bottom:2px;}
+.friendsMenu{display:none;flex-direction:column;gap:5px;margin-top:5px;}
 </style>
 </head>
 <body>
@@ -44,6 +46,12 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
       <button onclick="openAccountModalClean()">Account</button>
       <button onclick="showNewChat()">New Chat</button>
       <button onclick="leaveChat()">Leave Chat</button>
+      <button onclick="toggleFriendsMenu()">Friends</button>
+      <div id="friendsMenu" class="friendsMenu">
+        <button onclick="openAddFriendModal()">Add Friend</button>
+        <button onclick="openFriendRequests()">Friend Requests</button>
+        <button onclick="openDMs()">DMs</button>
+      </div>
     </div>
     <div id="chat"></div>
     <div id="typingDiv" class="typingIndicator"></div>
@@ -96,14 +104,13 @@ let lastUser=null, lastTime=0;
 // --- MODAL HELPERS ---
 function showModalText(t){document.getElementById("modalText").innerText=t;document.getElementById("modal").style.display="flex";}
 function closeModal(){document.getElementById("modal").style.display="none";}
-function showAccountModalClean(){openAccountModalClean();}
-function closeAccountModal(){document.getElementById("accountModal").style.display="none";}
 function showNewChat(){document.getElementById("newChatModal").style.display="flex";}
 function closeNewChat(){document.getElementById("newChatModal").style.display="none";}
 function createChatUI(){closeNewChat();document.getElementById("createChatName").value="";document.getElementById("createChatModal").style.display="flex";}
 function joinChatUI(){closeNewChat();document.getElementById("joinChatCode").value="";document.getElementById("joinChatModal").style.display="flex";}
 function closeCreateChat(){document.getElementById("createChatModal").style.display="none";}
 function closeJoinChat(){document.getElementById("joinChatModal").style.display="none";}
+function toggleFriendsMenu(){const m=document.getElementById("friendsMenu");m.style.display=m.style.display==="flex"?"none":"flex";}
 
 // --- MODE ---
 function setMode(mode){isDark=mode==="dark";document.body.style.background=isDark?"#111":"#f5f5f5";document.body.style.color=isDark?"#eee":"#111";chatDiv.style.background=isDark?"#222":"#ddd";}
@@ -155,7 +162,7 @@ function sendMessage(){
 function joinChat(code){
   currentChat=code; chatDiv.innerHTML=""; chatDiv.style.display="flex";document.getElementById("msg").style.display="block";document.getElementById("sendBtn").style.display="inline-block";
   db.ref("chats/"+code+"/members/"+myName).set(true);
-  db.ref("messages/"+currentChat).push({system:true,text:`${myName} joined the chat`,timestamp:Date.now()});
+  db.ref("messages/"+currentChat).push({system:true,text:`${myName} joined the chat (${code})`,timestamp:Date.now()});
   listenMessages();
   listenTyping();
 }
@@ -185,26 +192,26 @@ function addMessageBubble(user,text,color,isMe,system,key,timestamp){
     if(showName){
       const nameDiv=document.createElement("div");
       nameDiv.textContent=user;
-      nameDiv.style.fontWeight="bold";
-      nameDiv.style.marginTop="8px";
+      nameDiv.className="usernameLabel";
       div.appendChild(nameDiv);
     }
 
-    div.className=isMe?"userBubble":"friendBubble";
-    div.style.background=color?.startsWith("linear-gradient")?color:(color||isMe?"#1abc9c":"#444");
-    const msgSpan=document.createElement("span"); msgSpan.textContent=text;
-    div.appendChild(msgSpan);
-
-    const timeSpan=document.createElement("span");timeSpan.className="timestamp";timeSpan.textContent=formatTime(timestamp);
-    div.appendChild(timeSpan);
+    const bubble=document.createElement("div");
+    bubble.textContent=text;
+    bubble.className=isMe?"userBubble":"friendBubble";
+    bubble.style.background=color||"#555";
+    div.appendChild(bubble);
 
     if(isMe){
       const btnDiv=document.createElement("div");btnDiv.className="editDelete";
       btnDiv.innerHTML='<button onclick="editMsg(\''+key+'\')">Edit</button><button onclick="deleteMsg(\''+key+'\')">Del</button>';
-      div.appendChild(btnDiv);
-      div.addEventListener("mouseenter",()=>{setTimeout(()=>{btnDiv.style.display="flex";},2000);});
-      div.addEventListener("mouseleave",()=>{btnDiv.style.display="none";});
+      bubble.appendChild(btnDiv);
+      bubble.addEventListener("mouseenter",()=>{setTimeout(()=>{btnDiv.style.display="flex";},2000);});
+      bubble.addEventListener("mouseleave",()=>{btnDiv.style.display="none";});
     }
+
+    const ts=document.createElement("span"); ts.className="timestamp"; ts.textContent=formatTime(timestamp);
+    bubble.appendChild(ts);
   }
   chatDiv.appendChild(div); chatDiv.scrollTop=chatDiv.scrollHeight;
 }
@@ -216,11 +223,6 @@ function pruneMessages(){
       excess.forEach(m=>{db.ref("messages/"+currentChat+"/"+m[0]).remove();});
     }
   });
-}
-function leaveChat(){
-  if(!currentChat)return;
-  db.ref("chats/"+currentChat+"/members/"+myName).remove();
-  currentChat=null; chatDiv.innerHTML=""; chatDiv.style.display="none";document.getElementById("msg").style.display="none";document.getElementById("sendBtn").style.display="none";
 }
 
 // --- TYPING ---
@@ -288,9 +290,20 @@ function saveAccountChanges(){
   if(p)db.ref(`users/${myName}/password`).set(p);
   closeAccountModal();
 }
-function openAddFriendModal(){alert("Add Friend placeholder");}
-function openFriendRequests(){alert("Friend Requests placeholder");}
-function openDMs(){alert("DMs placeholder");}
+function closeAccountModal(){document.getElementById("accountModal").style.display="none";}
+
+// --- FRIENDS ---
+function openAddFriendModal(){showModalText("Add Friend placeholder");}
+function openFriendRequests(){showModalText("Friend Requests placeholder");}
+function openDMs(){showModalText("DMs placeholder");}
+
+// --- LEAVE CHAT ---
+function leaveChat(){
+  if(!currentChat)return;
+  db.ref("chats/"+currentChat+"/members/"+myName).remove();
+  currentChat=null; chatDiv.innerHTML=""; chatDiv.style.display="none";document.getElementById("msg").style.display="none";document.getElementById("sendBtn").style.display="none";
+}
+
 </script>
 </body>
 </html>
