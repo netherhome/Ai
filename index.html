@@ -13,22 +13,19 @@ body{font-family:'Inter',sans-serif;margin:0;padding:0;background:var(--bg-dark)
 #chat{border:1px solid #444;padding:10px;height:400px;overflow-y:auto;border-radius:12px;background:#222;flex:1;display:flex;flex-direction:column;scroll-behavior:smooth;}
 textarea{width:100%;height:50px;padding:10px;border-radius:8px;border:1px solid #555;margin-top:10px;font-weight:bold;background:linear-gradient(135deg,#3498db,#2980b9);color:#fff;resize:none;}
 button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:pointer;background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;font-weight:600;}
-/* Messages */
-.msgRow{display:flex;align-items:flex-start;margin:6px 0;max-width:80%;}
-.msgRow.right{margin-left:auto;flex-direction:row-reverse;}
-.pfp{width:32px;height:32px;border-radius:50%;margin:0 6px;}
-.nameAndBubble{display:flex;flex-direction:column;}
-.username{font-size:12px;color:#bbb;margin:0 6px;}
-.msgBubble{padding:8px 12px;border-radius:12px;word-wrap:break-word;max-width:240px;}
+.userBubble,.friendBubble{padding:8px 12px;border-radius:15px;margin:5px 0;max-width:60%;word-wrap:break-word;position:relative;}
+.userBubble{align-self:flex-end;background:#1abc9c;color:#fff;}
+.friendBubble{align-self:flex-start;background:#555;color:#fff;}
 .joinMsg{color:#aaa;text-align:center;font-style:italic;margin:5px 0;}
 .timestamp{font-size:10px;color:#ccc;margin-left:5px;}
-/* Modals */
 .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);justify-content:center;align-items:center;z-index:50;}
 .modalContent{background:linear-gradient(135deg,#3498db,#2980b9);color:#fff;padding:20px;border-radius:12px;text-align:center;min-width:250px;}
 .modalContent input{padding:8px;margin:8px;border-radius:6px;border:none;}
 .modalContent button{margin-top:5px;padding:8px 12px;}
 .headerBtns{display:flex;justify-content:center;margin-bottom:10px;}
 .headerBtns button{margin:0 5px;}
+.userNameDiv{font-weight:bold;margin-bottom:2px;}
+.pfp{width:32px;height:32px;border-radius:50%;margin-right:5px;vertical-align:middle;}
 </style>
 </head>
 <body>
@@ -69,16 +66,17 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script>
-// Firebase setup
+// --- Firebase setup ---
 const fb={apiKey:"AIzaSyCSh6K8e_CAswGyYuIvgMVKZ3T8b5gGKFU",authDomain:"hyphonchat.firebaseapp.com",databaseURL:"https://hyphonchat-default-rtdb.firebaseio.com",projectId:"hyphonchat",storageBucket:"hyphonchat.firebasestorage.app",messagingSenderId:"172774813412",appId:"1:172774813412:web:8d307b6a170bf270cfc6f1"};
 firebase.initializeApp(fb);
 const db=firebase.database();
 
-let me="", myColor="#1abc9c", myPfp="https://th.bing.com/th/id/OIP.Xx93W3aTtFensmWsSFuDYAHaHa?w=202&h=202";
-let currentChat=null, listener=null, typingTimeout;
+// --- Variables ---
+let me="", myColor="#1abc9c", myPfp="https://th.bing.com/th/id/OIP.Xx93W3aTtFensmWsSFuDYAHaHa?w=202&h=202&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3";
+let currentChat=null, sending=false, listener=null, typingTimeout;
 const chatDiv=document.getElementById("chat");
 
-// Startup
+// --- Startup ---
 document.addEventListener("DOMContentLoaded",()=>{
   document.getElementById("signupBtn").addEventListener("click",()=>{
     accUI('Create');
@@ -86,174 +84,228 @@ document.addEventListener("DOMContentLoaded",()=>{
   });
 });
 
-// Account UI
+// --- Account UI ---
 function accUI(type){
-  const accModal=document.getElementById("accModal");
-  const accBox=document.getElementById("accBox");
-  if(type==="Create"||type==="Login"){
-    const switchBtn = type==="Create" ? 
-      `<button onclick="accUI('Login')" style="background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;margin-top:6px;">Already have an account? Log In</button>` :
-      `<button onclick="accUI('Create')" style="background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;margin-top:6px;">Don't have an account? Sign Up</button>`;
-    accBox.innerHTML=`
-      <h3>${type} Account</h3>
-      <input id="accName" placeholder="Name">
-      <input id="accPass" type="password" placeholder="Password">
-      <button onclick="subAcc('${type}')" style="background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;">Submit</button>
-      ${switchBtn}
-      <button onclick="accModal.style.display='none'">X</button>`;
-    accModal.style.display="flex";
-  } else {
-    accBox.innerHTML=`
+  let box=document.getElementById("accBox");
+  let modal=document.getElementById("accModal");
+
+  if(type==="Create"){ // Sign Up
+    box.innerHTML=`
+      <h3>Create Account</h3>
+      <input id="newName" placeholder="Username"><br>
+      <input id="newPass" type="password" placeholder="Password"><br>
+      <button onclick="doCreate()">Create</button>
+      <button onclick="cls('accModal')">X</button>`;
+    modal.style.display="flex";
+    return;
+  }
+
+  if(type==="Login"){ // Login
+    box.innerHTML=`
+      <h3>Log In</h3>
+      <input id="logName" placeholder="Username"><br>
+      <input id="logPass" type="password" placeholder="Password"><br>
+      <button onclick="doLogin()">Log In</button>
+      <button onclick="cls('accModal')">X</button>`;
+    modal.style.display="flex";
+    return;
+  }
+
+  if(type==="Settings" && me){ // Account Settings
+    box.innerHTML=`
       <h3>Account Settings</h3>
-      <img src="${myPfp}" width="64" height="64" style="border-radius:50%"><br>
-      <input id="newPfp" placeholder="New PFP URL"><button onclick="chgPfp()">Save</button><br>
-      <label>Pick Color:</label><br>`;
-    ["#1abc9c","#3498db","#e74c3c","#f1c40f","#9b59b6"].forEach(c=>{
-      accBox.innerHTML+=`<button onclick="setCol('${c}')" style="background:${c};width:24px;height:24px;margin:2px;border:none;"></button>`;
-    });
-    if(me==="Nether"){
-      ["linear-gradient(45deg,#ff6ec4,#7873f5)","linear-gradient(45deg,#00f260,#0575e6)"].forEach(c=>{
-        accBox.innerHTML+=`<button onclick="setCol('${c}')" style="background:${c};width:24px;height:24px;margin:2px;border:none;"></button>`;
-      });
-    }
-    accBox.innerHTML+=`
-      <div style="margin-top:10px;">
-        <button onclick="cls('accModal')">Close</button>
-      </div>`;
-    accModal.style.display="flex";
+      <div><img src="${myPfp}" width=64 height=64 style="border-radius:50%"></div>
+      <p>Username: ${me}</p>
+      <label>Change Username:</label><input id="chgName"><button onclick="chgName()">Save</button><br>
+      <label>Profile Pic URL:</label><input id="chgPfp"><button onclick="chgPfp()">Save</button><br>
+      <label>Msg Color:</label><input id="chgCol" type="color" value="${myColor}"><button onclick="chgColBtn()">Save</button><br>
+      <button onclick="opn('friendReqModal')">Friend Requests</button>
+      <button onclick="opn('dmsModal')">DMs</button>
+      <button onclick="logout()">Logout</button>
+      <button onclick="cls('accModal')">X</button>`;
+    modal.style.display="flex";
+    return;
   }
 }
 
-function subAcc(type){
-  const n=document.getElementById("accName").value.trim();
-  const p=document.getElementById("accPass").value;
-  if(!n) return alert("Enter name");
+// --- Account Functions ---
+function doCreate(){
+  const n=document.getElementById("newName").value.trim();
+  const p=document.getElementById("newPass").value;
+  if(!n) return alert("Enter username");
   db.ref("users/"+n).get().then(s=>{
-    if(type==="Create"){
-      if(s.exists()) return alert("Name taken!");
-      me=n;
-      db.ref("users/"+n).set({color:myColor,password:p||null,pfp:myPfp,myChats:{}});
-      startChatUI();
-    } else {
-      if(!s.exists()) return alert("Name not found!");
-      if(s.val().password && s.val().
-        alert("Wrong password!");
-        return;
-      }
-      me=n;
-      myColor=s.val().color||myColor;
-      myPfp=s.val().pfp||myPfp;
-      startChatUI();
-    }
+    if(s.exists()) return alert("Name taken!");
+    me=n;
+    db.ref("users/"+n).set({password:p||null,color:myColor,pfp:myPfp,myChats:{},friends:{},requests:{}});
+    startChatUI();
+    cls('accModal');
   });
 }
 
-function startChatUI(){
-  document.getElementById("startupScreen").style.display="none";
-  document.getElementById("chatUI").style.display="flex";
+function doLogin(){
+  const n=document.getElementById("logName").value.trim();
+  const p=document.getElementById("logPass").value;
+  db.ref("users/"+n).get().then(s=>{
+    if(!s.exists()) return alert("Not found!");
+    if(s.val().password && s.val().password!==p) return alert("Wrong password!");
+    me=n; myColor=s.val().color||myColor; myPfp=s.val().pfp||myPfp;
+    startChatUI();
+    cls('accModal');
+  });
 }
 
-// Change PFP
+function chgName(){
+  const n=document.getElementById("chgName").value.trim();
+  if(!n) return;
+  db.ref("users/"+me).once("value").then(s=>{
+    const d=s.val();
+    db.ref("users/"+n).set(d);
+    db.ref("users/"+me).remove();
+    me=n;
+    alert("Username changed!");
+  });
+}
+
 function chgPfp(){
-  const url=document.getElementById("newPfp").value;
-  if(url){
-    myPfp=url;
-    db.ref("users/"+me+"/pfp").set(url);
-    alert("Updated!");
-  }
+  const u=document.getElementById("chgPfp").value.trim();
+  if(!u) return;
+  myPfp=u;
+  db.ref("users/"+me+"/pfp").set(u);
 }
 
-// Change Color
-function setCol(c){
+function chgColBtn(){
+  const c=document.getElementById("chgCol").value;
   myColor=c;
   db.ref("users/"+me+"/color").set(c);
-  alert("Color changed!");
 }
 
-// Close modal
-function cls(id){document.getElementById(id).style.display="none";}
-
-// Chat Functions
-function mkChat(){cls('newModal');document.getElementById("mkModal").style.display="flex";}
-function jnChat(){cls('newModal');document.getElementById("jnModal").style.display="flex";}
-function subMk(){
-  const name=document.getElementById("mkName").value.trim();
-  if(!name) return;
-  const key=db.ref("chats").push().key;
-  db.ref("chats/"+key).set({name:name,messages:[]});
-  joinChat(key);
-  cls('mkModal');
-}
-function subJn(){
-  const code=document.getElementById("jnCode").value.trim();
-  if(!code) return;
-  joinChat(code);
-  cls('jnModal');
+function logout(){
+  me=""; currentChat=null; document.getElementById("chatUI").style.display="none";
+  document.getElementById("startupScreen").style.display="flex";
+  cls('accModal');
 }
 
-function joinChat(code){
-  currentChat=code;
-  if(listener) listener.off();
+// --- Start Chat UI ---
+function startChatUI(){
+  document.getElementById("chatUI").style.display="flex";
   chatDiv.innerHTML="";
-  listener=db.ref("chats/"+code+"/messages");
-  listener.on("child_added",snap=>{
-    const m=snap.val();
-    addMsg(m.user,m.txt,m.color,m.pfp,m.time);
-  });
-  // join message
-  const msg={user:"SYSTEM",txt:`[${code}] ${me} Joined`,color:"#aaa",pfp:"",time:Date.now()};
-  db.ref("chats/"+code+"/messages").push(msg);
-}
-
-document.getElementById("sendBtn").addEventListener("click",sendMsg);
-function sendMsg(){
-  const t=document.getElementById("msg").value.trim();
-  if(!t||!currentChat) return;
-  const msg={user:me,txt:t,color:myColor,pfp:myPfp,time:Date.now()};
-  db.ref("chats/"+currentChat+"/messages").push(msg);
   document.getElementById("msg").value="";
 }
 
-// Render Messages
-function addMsg(user,txt,color,pfp,time){
-  if(user==="SYSTEM"){
-    const d=document.createElement("div");
-    d.className="joinMsg";
-    d.innerText=txt;
-    chatDiv.appendChild(d);
-    chatDiv.scrollTop=chatDiv.scrollHeight;
-    return;
-  }
-  const row=document.createElement("div");
-  row.className="msgRow"+(user===me?" right":"");
-  const img=document.createElement("img");
-  img.src=pfp; img.className="pfp";
-  const wrap=document.createElement("div");
-  wrap.className="nameAndBubble";
-  const name=document.createElement("div");
-  name.className="username"; name.innerText=user;
-  const bubble=document.createElement("div");
-  bubble.className="msgBubble";
-  bubble.style.background=color;
-  bubble.innerText=txt;
-  const timeEl=document.createElement("span");
-  timeEl.className="timestamp";
-  timeEl.innerText=new Date(time).toLocaleTimeString();
-  name.appendChild(timeEl);
-  wrap.appendChild(name);
-  wrap.appendChild(bubble);
-  row.appendChild(img);
-  row.appendChild(wrap);
-  chatDiv.appendChild(row);
-  chatDiv.scrollTop=chatDiv.scrollHeight;
+// --- Buttons ---
+document.getElementById("accBtn").onclick=()=>accUI('Settings');
+document.getElementById("chatsBtn").onclick=openChats;
+document.getElementById("newChatBtn").onclick=newChat;
+document.getElementById("leaveBtn").onclick=leaveChat;
+document.getElementById("dmsBtn").onclick=openDMs;
+document.getElementById("sendBtn").onclick=sendMsg;
+
+// --- Create / Join / Leave Chat ---
+function newChat(){cls('newModal');document.getElementById("newModal").style.display="flex";}
+function mkChat(){cls('newModal');document.getElementById("mkModal").style.display="flex";}
+function jnChat(){cls('newModal');document.getElementById("jnModal").style.display="flex";}
+
+function subMk(){
+  const n=document.getElementById("mkName").value.trim();
+  if(!n) return alert("Enter chat name");
+  const code=Math.floor(10000+Math.random()*89999);
+  db.ref("chats/"+code).set({name:n,members:{[me]:true}});
+  db.ref("users/"+me+"/myChats/"+code).set(n);
+  currentChat=code;
+  chatDiv.innerHTML="";
+  listenMsgs();
+  listenTyping();
+  db.ref("messages/"+code).push({txt:`[${code}] ${me} joined`,system:true,timestamp:Date.now()});
+  cls('mkModal');
 }
 
-// Header buttons
-document.getElementById("accBtn").onclick=()=>accUI("Settings");
-document.getElementById("chatsBtn").onclick=()=>document.getElementById("chatsModal").style.display="flex";
-document.getElementById("newChatBtn").onclick=()=>document.getElementById("newModal").style.display="flex";
-document.getElementById("leaveBtn").onclick=()=>{currentChat=null;chatDiv.innerHTML="";};
-document.getElementById("dmsBtn").onclick=()=>document.getElementById("dmsModal").style.display="flex";
+function subJn(){
+  const c=document.getElementById("jnCode").value.trim();
+  if(!c) return alert("Enter chat code");
+  db.ref("chats/"+c).get().then(s=>{
+    if(!s.exists()) return alert("Chat not found");
+    db.ref("users/"+me+"/myChats/"+c).set(s.val().name);
+    currentChat=c;
+    chatDiv.innerHTML="";
+    listenMsgs();
+    listenTyping();
+    db.ref("messages/"+c).push({txt:`[${c}] ${me} joined`,system:true,timestamp:Date.now()});
+    cls('jnModal');
+  });
+}
+
+function leaveChat(){
+  if(!currentChat) return;
+  if(confirm("Leave chat?")){
+    db.ref("chats/"+currentChat+"/members/"+me).remove();
+    currentChat=null;
+    chatDiv.innerHTML="";
+  }
+}
+
+// --- Send / Listen Messages ---
+function sendMsg(){
+  if(!currentChat) return;
+  const txt=document.getElementById("msg").value.trim();
+  if(!txt) return;
+  document.getElementById("msg").value="";
+  db.ref("messages/"+currentChat).push({u:me,txt:txt,c:myColor,pic:myPfp,timestamp:Date.now()});
+}
+
+function listenMsgs(){
+  if(listener) db.ref("messages/"+currentChat).off("child_added",listener);
+  listener=db.ref("messages/"+currentChat).on("child_added",snap=>{
+    const d=snap.val();
+    const row=document.createElement("div");
+    if(d.system){
+      const j=document.createElement("div"); j.className="joinMsg"; j.textContent=d.txt; row.appendChild(j);
+    } else {
+      const img=document.createElement("img"); img.className="pfp"; img.src=d.pic||myPfp;
+      const msgdiv=document.createElement("div"); msgdiv.className=(d.u==me?"userBubble":"friendBubble");
+      const txtDiv=document.createElement("div"); txtDiv.textContent=d.txt; txtDiv.style.fontWeight="bold"; msgdiv.appendChild(txtDiv);
+      const tdiv=document.createElement("div"); tdiv.className="timestamp"; tdiv.textContent=new Date(d.timestamp).toLocaleTimeString(); msgdiv.appendChild(tdiv);
+      row.appendChild(img); row.appendChild(msgdiv);
+    }
+    chatDiv.appendChild(row);
+    chatDiv.scrollTop=chatDiv.scrollHeight;
+  });
+}
+
+// --- Typing indicator ---
+document.getElementById("msg").addEventListener("input",()=>{
+  if(!currentChat) return;
+  db.ref("typing/"+currentChat+"/"+me).set(true);
+  clearTimeout(typingTimeout);
+  typingTimeout=setTimeout(()=>{db.ref("typing/"+currentChat+"/"+me).remove();},1500);
+});
+
+function listenTyping(){
+  if(!currentChat) return;
+  db.ref("typing/"+currentChat).on("value",snap=>{
+    const arr=[]; snap.forEach(s=>{if(s.key!==me) arr.push(s.key);});
+    document.getElementById("typingDiv").textContent=arr.length?arr.join(", ")+" is typing...":"";
+  });
+}
+
+// --- My Chats ---
+function openChats(){
+  document.getElementById("chatsModal").style.display="flex";
+  const clist=document.getElementById("chatList");
+  clist.innerHTML="";
+  db.ref("users/"+me+"/myChats").get().then(s=>{
+    s.forEach(chat=>{
+      const b=document.createElement("button");
+      b.textContent=chat.val();
+      b.onclick=()=>{currentChat=chat.key; chatDiv.innerHTML=""; listenMsgs(); listenTyping(); cls('chatsModal');};
+      clist.appendChild(b);
+    });
+  });
+}
+
+// --- Utilities ---
+function cls(id){document.getElementById(id).style.display="none";}
+function opn(id){document.getElementById(id).style.display="flex";}
 </script>
+
 </body>
 </html>
