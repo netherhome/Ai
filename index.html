@@ -21,6 +21,7 @@ button{border:none;border-radius:6px;padding:6px 12px;cursor:pointer;margin:2px;
 .join{font-style:italic;color:#aaa;font-size:12px;text-align:center;margin:4px 0;}
 .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);align-items:center;justify-content:center;z-index:50;}
 .modalContent{background:#222;color:#fff;padding:18px;border-radius:12px;min-width:280px;max-height:80%;overflow:auto;box-shadow:0 4px 12px rgba(0,0,0,0.7);}
+.modalContent h3{background:linear-gradient(135deg,#1abc9c,#3498db);padding:8px;border-radius:8px;margin-top:0;margin-bottom:8px;text-align:center;}
 .modalContent input{padding:8px;margin:6px 0;border-radius:6px;border:none;width:90%;}
 .modalContent button{margin:4px;}
 .friendItem{display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;}
@@ -66,7 +67,7 @@ button{border:none;border-radius:6px;padding:6px 12px;cursor:pointer;margin:2px;
 const fb={apiKey:"AIzaSyCSh6K8e_CAswGyYuIvgMVKZ3T8b5gGKFU",authDomain:"hyphonchat.firebaseapp.com",databaseURL:"https://hyphonchat-default-rtdb.firebaseio.com",projectId:"hyphonchat",storageBucket:"hyphonchat.firebasestorage.app",messagingSenderId:"172774813412",appId:"1:172774813412:web:8d307b6a170bf270cfc6f1"};
 firebase.initializeApp(fb);const db=firebase.database();
 
-let me="",col="#1abc9c",pic="https://i.imgur.com/4ZQZ4bU.png",chat=null,listener=null,lastUser="",lastTime=0,typingTimeout;
+let me="",col="#1abc9c",pic="https://th.bing.com/th/id/OIP.Xx93W3aTtFensmWsSFuDYAHaHa?w=202&h=202&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3",chat=null,listener=null,lastUser="",lastTime=0,typingTimeout;
 const chatDiv=document.getElementById("chat");
 
 const cls=id=>document.getElementById(id).style.display="none";
@@ -78,8 +79,8 @@ function subAcc(type){
 const n=accName.value.trim(),p=accPass.value;
 if(!n)return;
 db.ref("users/"+n).get().then(s=>{
-if(type=="Create"){if(s.exists())return alert("Name taken");me=n;col="#1abc9c";pic="https://i.imgur.com/4ZQZ4bU.png";db.ref("users/"+n).set({color:col,password:p||null,pic,friends:{},requests:{},myChats:{},joinTime:Date.now()});start();cls('accModal');}
-else{if(!s.exists())return alert("No user");if(s.val().password&&s.val().password!==p)return alert("Wrong pass");me=n;col=s.val().color||col;pic=s.val().pic||"https://i.imgur.com/4ZQZ4bU.png";start();cls('accModal');}
+if(type=="Create"){if(s.exists())return alert("Name taken");me=n;col="#1abc9c";pic="https://th.bing.com/th/id/OIP.Xx93W3aTtFensmWsSFuDYAHaHa?w=202&h=202&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3";db.ref("users/"+n).set({color:col,password:p||null,pic,friends:{},requests:{},myChats:{},joinTime:Date.now()});start();cls('accModal');}
+else{if(!s.exists())return alert("No user");if(s.val().password&&s.val().password!==p)return alert("Wrong pass");me=n;col=s.val().color||col;pic=s.val().pic||"https://th.bing.com/th/id/OIP.Xx93W3aTtFensmWsSFuDYAHaHa?w=202&h=202&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3";start();cls('accModal');}
 });
 }
 
@@ -93,7 +94,7 @@ function joinChat(c){chat=c;chatDiv.innerHTML="";if(listener)db.ref("messages/"+
 function addBubble(d){
 let row=document.createElement("div");row.className="msgRow"+(d.u===me?" me":"");
 if(!d.system){
-let im=document.createElement("img");im.className="pfp";im.src=d.p||"https://i.imgur.com/4ZQZ4bU.png";
+let im=document.createElement("img");im.className="pfp";im.src=d.p||"https://th.bing.com/th/id/OIP.Xx93W3aTtFensmWsSFuDYAHaHa?w=202&h=202&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3";
 let box=document.createElement("div");box.style.display="flex";box.style.flexDirection="column";
 if(d.u!==lastUser||(d.ts-lastTime)>60000){let nm=document.createElement("div");nm.className="name";nm.textContent=d.u;box.appendChild(nm);}
 lastUser=d.u;lastTime=d.ts;
@@ -156,6 +157,7 @@ ${me==='Nether'?["linear-gradient(45deg,#ff6ec4,#7873f5)","linear-gradient(45deg
 <button onclick="cls('accModal')">X</button>`;
 accModal.style.display="flex";
 });
+
 }
 
 function setCol(c){col=c;db.ref("users/"+me+"/color").set(c);}
