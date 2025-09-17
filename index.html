@@ -30,14 +30,16 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 </head>
 <body>
 
+<!-- Startup -->
 <div id="startup">
   <h1>Welcome to HyphonChat!</h1>
   <div>
-    <button onclick="makeAccountUI()">Make Account</button>
-    <button onclick="openAccountUI()">Open Account</button>
+    <button onclick="makeAccountUI()">Sign Up for Free</button>
+    <button onclick="openAccountUI()">Log In</button>
   </div>
 </div>
 
+<!-- Chat UI -->
 <div id="chatUI">
   <button id="toggleMode" onclick="toggleMode()">Toggle Light/Dark</button>
   <div id="chatContainer">
@@ -55,43 +57,48 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 
 <!-- Modals -->
 <div id="modal" class="modal"><div class="modalContent"><div id="modalText"></div><button onclick="closeModal()">X</button></div></div>
-<div id="accountModal" class="modal"><div class="modalContent"><div id="accountText"></div>
-<input id="accountInput" placeholder="Enter name"/>
-<input id="accountPassword" type="password" placeholder="Password (optional)"/>
-<div id="accountExtras"></div>
-<button onclick="submitAccount()">Submit</button>
-<button onclick="closeAccountModal()">X</button>
-</div></div>
-<div id="newChatModal" class="modal"><div class="modalContent">
-<button onclick="createChatUI()">Create Chat</button>
-<button onclick="joinChatUI()">Join Chat</button>
-<button onclick="closeNewChat()">X</button>
-</div></div>
-<div id="createChatModal" class="modal"><div class="modalContent">
-<div>Create Chat</div><input id="createChatName" placeholder="Chat name"/><button onclick="submitCreateChat()">Create</button><button onclick="closeCreateChat()">X</button>
-</div></div>
-<div id="joinChatModal" class="modal"><div class="modalContent">
-<div>Join Chat</div><input id="joinChatCode" placeholder="Chat code"/><button onclick="submitJoinChat()">Join</button><button onclick="closeJoinChat()">X</button>
+
+<!-- Account Modal -->
+<div id="accountModal" class="modal"><div class="modalContent">
+  <div id="accountText"></div>
+  <input id="accountInput" placeholder="Enter name"/>
+  <input id="accountPassword" type="password" placeholder="Password (optional)"/>
+  <div id="accountExtras"></div>
+  <button onclick="submitAccount()">Submit</button>
+  <button onclick="closeAccountModal()">X</button>
 </div></div>
 
-<!-- Friends / DMs Modals -->
+<!-- Chat Modals -->
+<div id="newChatModal" class="modal"><div class="modalContent">
+  <button onclick="createChatUI()">Create Chat</button>
+  <button onclick="joinChatUI()">Join Chat</button>
+  <button onclick="closeNewChat()">X</button>
+</div></div>
+<div id="createChatModal" class="modal"><div class="modalContent">
+  <div>Create Chat</div><input id="createChatName" placeholder="Chat name"/><button onclick="submitCreateChat()">Create</button><button onclick="closeCreateChat()">X</button>
+</div></div>
+<div id="joinChatModal" class="modal"><div class="modalContent">
+  <div>Join Chat</div><input id="joinChatCode" placeholder="Chat code"/><button onclick="submitJoinChat()">Join</button><button onclick="closeJoinChat()">X</button>
+</div></div>
+
+<!-- Friends/DMs Modals -->
 <div id="addFriendModal" class="modal"><div class="modalContent">
-<h3>Add Friend</h3>
-<input id="addFriendInput" placeholder="Friend username"/>
-<button onclick="submitAddFriend()">Send Request</button>
-<button onclick="closeAddFriend()">X</button>
+  <h3>Add Friend</h3>
+  <input id="addFriendInput" placeholder="Friend username"/>
+  <button onclick="submitAddFriend()">Send Request</button>
+  <button onclick="closeAddFriend()">X</button>
 </div></div>
 
 <div id="friendRequestsModal" class="modal"><div class="modalContent">
-<h3>Friend Requests</h3>
-<div id="friendRequestsList"></div>
-<button onclick="closeFriendRequests()">X</button>
+  <h3>Friend Requests</h3>
+  <div id="friendRequestsList"></div>
+  <button onclick="closeFriendRequests()">X</button>
 </div></div>
 
 <div id="dmsModal" class="modal"><div class="modalContent">
-<h3>DMs</h3>
-<div id="friendsList"></div>
-<button onclick="closeDMs()">X</button>
+  <h3>DMs</h3>
+  <div id="friendsList"></div>
+  <button onclick="closeDMs()">X</button>
 </div></div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -154,6 +161,8 @@ function submitAccount(){
 }
 
 // --- CHAT ---
+// ... [All chat, DM, friends,
+
 function startChatUI(){
   document.getElementById("startup").style.display="none";
   document.getElementById("chatUI").style.display="flex";
