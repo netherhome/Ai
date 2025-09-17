@@ -35,7 +35,7 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 <div id="chatUI">
   <button id="toggleMode" onclick="toggleMode()">Toggle Light/Dark</button>
   <div id="chatContainer">
-    <div style="margin-bottom:10px;">
+    <div style="margin-bottom:10px;" id="topButtons">
       <button onclick="showAccountPanel()">Account</button>
       <button onclick="showCreateChat()">Create Chat</button>
       <button onclick="joinChatPrompt()">Join Chat</button>
@@ -117,7 +117,14 @@ function submitAccount(){
 }
 
 // --- Start Chat UI ---
-function startChatUI(){document.getElementById("startup").style.display="none";document.getElementById("chatUI").style.display="flex"; chatDiv.style.display="none";document.getElementById("msg").style.display="none";document.getElementById("sendBtn").style.display="none";}
+function startChatUI(){document.getElementById("startup").style.display="none";document.getElementById("chatUI").style.display="flex"; chatDiv.style.display="none";document.getElementById("msg").style.display="none";document.getElementById("sendBtn").style.display="none";setTopButtonColors();}
+
+// --- Top button colors ---
+function setTopButtonColors(){
+  const topButtons = document.querySelectorAll("#topButtons > button");
+  const btnColors = ["#3498db","#e74c3c","#f1c40f","#9b59b6","#1abc9c","#e67e22","#16a085","#9b59b6"];
+  topButtons.forEach((btn,i)=>{btn.style.background = btnColors[i%btnColors.length]; btn.style.color="#fff";});
+}
 
 // --- Account Panel ---
 function showAccountPanel(){
@@ -171,14 +178,25 @@ function joinChatPrompt(){const code=prompt("Enter 5-digit chat code:");if(code)
 function joinChat(code){currentChat=code;chatDiv.innerHTML="";chatDiv.style.display="flex";document.getElementById("msg").style.display="block";document.getElementById("sendBtn").style.display="inline-block";db.ref("chats/"+code+"/members/"+myName).set(true);listenMessages();}
 function leaveChat(){if(!currentChat)return;db.ref("chats/"+currentChat+"/members/"+myName).remove();db.ref("chats/"+currentChat+"/members").get().then(snap=>{if(!snap.exists()) db.ref("chats/"+currentChat).remove();});currentChat=null;chatDiv.style.display="none";document.getElementById("msg").style.display="none";document.getElementById("sendBtn").style.display="none";chatDiv.innerHTML="";}
 function listenMessages(){if(!currentChat)return;db.ref("messages/"+currentChat).on("child_added",snap=>{const d=snap.val();addMessageBubble(d.user,d.text,d.color,d.user===myName);pruneMessages();});}
-function addMessageBubble(user,text,color,isMe){const div=document.createElement("div");div.className=isMe?"userBubble":"friendBubble";div.textContent=user+": "+text;div.style.background=isMe? color : color||"#444";chatDiv.appendChild(div);chatDiv.scrollTop=99999;}
+function addMessageBubble(user,text,color,isMe){
+  const div=document.createElement("div");
+  div.className=isMe?"userBubble":"friendBubble";
+  div.textContent=user+": "+text;
+  if(color && color.startsWith("linear-gradient")){
+    div.style.background=color;
+  } else {
+    div.style.background=color||(isMe?"#1abc9c":"#444");
+  }
+  chatDiv.appendChild(div);
+  chatDiv.scrollTop=99999;
+}
 function sendMessage(){if(sending||!currentChat)return;sending=true;const txt=document.getElementById("msg").value.trim();if(!txt){sending=false;return;}document.getElementById("msg").value="";db.ref("messages/"+currentChat).push({user:myName,text:txt,color:myColor}).then(()=>{sending=false;});}
 function pruneMessages(){db.ref("messages/"+currentChat).once("value").then(snap=>{if(snap.numChildren()>maxMessages){const keys=Object.keys(snap.val()).sort();const del=keys.slice(0,snap.numChildren()-maxMessages);del.forEach(k=>db.ref("messages/"+currentChat+"/"+k).remove());}});}
 
 // --- Friend System ---
 function showAddFriend(){showFriendModal();}
 function submitAddFriend(){const f=document.getElementById("friendInput").value.trim();if(!f||f===myName){alert("Invalid friend");return;}db.ref("friendRequests/"+f+"/"+myName).set(true);closeFriendModal();showModalText("Request sent!");}
-function loadFriendRequests(){db.ref("friendRequests/"+myName).once("value").then(snap=>{document.getElementById("requestsList").innerHTML="";snap.forEach(s=>{const div=document.createElement("div");div.textContent=s.key;const accept=document.createElement("button");accept.textContent="Accept";accept.onclick=()=>{db.ref("friends/"+myName+"/"+s.key).set(true);db.ref("friends/"+s.key+"/"+myName).set(true);db.ref("friendRequests/"+myName+"/"+s.key).remove();closeRequestsModal();showModalText("Friend added!");};document.getElementById("requestsList").appendChild(div);div.appendChild(accept);});});}
+function loadFriendRequests(){db.ref("friendRequests/"+myName).once("value").then(snap=>{document.getElementById("requestsList").innerHTML="";snap.forEach(s=>{const div=document.createElement("div");div.textContent=s.key;const accept=document.createElement("button");accept.textContent="Accept";accept.onclick=()=>{db.ref("friends/"+myName+"/"+s.key).set(true);db.ref("friends/"+s.key+"/"+myName).set(true);db.ref("friendRequests/"+myName+"/"+s.key).remove();closeRequestsModal();showModalText("Friend added!");};div.appendChild(accept);document.getElementById("requestsList").appendChild(div);});});}
 function showFriendRequests(){showRequestsModal();}
 
 // --- DM System ---
