@@ -22,17 +22,22 @@ button { padding:10px; margin:10px; background:#0ff; border:none; cursor:pointer
 let localConnection, dataChannel;
 const chat = document.getElementById("chat");
 
-// Use a public free WebSocket signaling server
+// Random username from list
+const usernames = ["Neo", "Pixel", "Glitch", "Cipher", "Echo", "Nova", "Vortex", "Shadow", "Blip", "Spark",
+                   "Quantum", "Frost", "Byte", "Laser", "Pulse", "Zen", "Orbit", "Drift", "Flux", "Arc"];
+const myName = usernames[Math.floor(Math.random()*usernames.length)];
+
+// Free public WebSocket signaling server
 const signaling = new WebSocket("wss://demo-signaling-server.herokuapp.com/"); 
 
 signaling.onmessage = async (msg) => {
   const data = JSON.parse(msg.data);
-  if(data.offer) await receiveOffer(data.offer);
+  if(data.offer && !localConnection) await receiveOffer(data.offer);
   if(data.answer) await receiveAnswer(data.answer);
-  if(data.candidate) localConnection.addIceCandidate(data.candidate);
+  if(data.candidate) localConnection?.addIceCandidate(data.candidate);
 };
 
-// Create connection and data channel
+// Initialize WebRTC
 async function initConnection() {
   localConnection = new RTCPeerConnection();
 
@@ -78,8 +83,9 @@ function addLine(text, cls){
 function send(){
   const msg = document.getElementById("msg").value;
   if(!msg.trim()) return;
-  addLine("You: " + msg, "user");
-  dataChannel.send(msg);
+  const message = `${myName}: ${msg}`;
+  addLine(message, "user");
+  dataChannel?.send(message);
   document.getElementById("msg").value = "";
 }
 
