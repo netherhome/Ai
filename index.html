@@ -16,6 +16,7 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 .userBubble{padding:8px 12px;border-radius:15px;margin:5px 0;max-width:70%;word-wrap:break-word;align-self:flex-end;color:#fff;font-weight:500;position:relative;}
 .friendBubble{padding:8px 12px;border-radius:15px;margin:5px 0;max-width:70%;word-wrap:break-word;align-self:flex-start;color:#fff;font-weight:500;position:relative;}
 .joinMsg{color:#aaa;text-align:center;font-style:italic;margin:5px 0;}
+.timestamp{font-size:10px;color:#ccc;margin-left:5px;}
 #toggleMode{position:absolute;top:10px;right:10px;padding:5px 10px;border-radius:6px;}
 .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);justify-content:center;align-items:center;z-index:50;}
 .modalContent{background:#222;color:#fff;padding:20px;border-radius:12px;text-align:center;min-width:250px;}
@@ -23,6 +24,7 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 .modalContent button{margin-top:5px;padding:8px 12px;}
 .editDelete{position:absolute;top:-5px;right:-5px;display:none;gap:4px;}
 .editDelete button{padding:2px 5px;font-size:12px;border-radius:4px;}
+.typingIndicator{font-style:italic;color:#aaa;font-size:12px;margin:3px 0;}
 </style>
 </head>
 <body>
@@ -39,13 +41,12 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
   <button id="toggleMode" onclick="toggleMode()">Toggle Light/Dark</button>
   <div id="chatContainer">
     <div style="margin-bottom:10px;" id="topButtons">
-      <button onclick="showAccountPanel()">Account</button>
+      <button onclick="openAccountModalClean()">Account</button>
       <button onclick="showNewChat()">New Chat</button>
       <button onclick="leaveChat()">Leave Chat</button>
-      <button onclick="showRecentChats()">Recent Chats</button>
-      <button onclick="showDMs()">DMs</button>
     </div>
     <div id="chat"></div>
+    <div id="typingDiv" class="typingIndicator"></div>
     <textarea id="msg" placeholder="Type a message..."></textarea>
     <button id="sendBtn" onclick="sendMessage()">Send</button>
   </div>
@@ -71,7 +72,6 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 <div id="joinChatModal" class="modal"><div class="modalContent">
 <div>Join Chat</div><input id="joinChatCode" placeholder="Chat code"/><button onclick="submitJoinChat()">Join</button><button onclick="closeJoinChat()">X</button>
 </div></div>
-<div id="dmModal" class="modal"><div class="modalContent"><div>DMs</div><div id="dmList"></div><button onclick="closeDMModal()">X</button></div></div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
@@ -85,14 +85,17 @@ const db=firebase.database();
 let myName="", myColor="#1abc9c", isDark=true;
 let currentChat=null, sending=false;
 const chatDiv=document.getElementById("chat");
+const typingDiv=document.getElementById("typingDiv");
 const maxMessages=40;
 const standardColors=["#1abc9c","#3498db","#e74c3c","#f1c40f","#9b59b6"];
 const secretColors=["linear-gradient(45deg,#ff6ec4,#7873f5)","linear-gradient(45deg,#00f260,#0575e6)","linear-gradient(45deg,#ff512f,#dd2476)"];
+let chatListener=null;
+let typingTimeout;
 
 // --- MODAL HELPERS ---
 function showModalText(t){document.getElementById("modalText").innerText=t;document.getElementById("modal").style.display="flex";}
 function closeModal(){document.getElementById("modal").style.display="none";}
-function showAccountModal(action){document.getElementById("accountText").innerText=action==="make"?"Create Account":"Open Account";document.getElementById("accountModal").style.display="flex";}
+function showAccountModalClean(){openAccountModalClean();}
 function closeAccountModal(){document.getElementById("accountModal").style.display="none";}
 function showNewChat(){document.getElementById("newChatModal").style.display="flex";}
 function closeNewChat(){document.getElementById("newChatModal").style.display="none";}
@@ -100,26 +103,24 @@ function createChatUI(){closeNewChat();document.getElementById("createChatName")
 function joinChatUI(){closeNewChat();document.getElementById("joinChatCode").value="";document.getElementById("joinChatModal").style.display="flex";}
 function closeCreateChat(){document.getElementById("createChatModal").style.display="none";}
 function closeJoinChat(){document.getElementById("joinChatModal").style.display="none";}
-function showDMModal(){document.getElementById("dmList").innerHTML="";document.getElementById("dmModal").style.display="flex";}
-function closeDMModal(){document.getElementById("dmModal").style.display="none";}
 
 // --- MODE ---
 function setMode(mode){isDark=mode==="dark";document.body.style.background=isDark?"#111":"#f5f5f5";document.body.style.color=isDark?"#eee":"#111";chatDiv.style.background=isDark?"#222":"#ddd";}
 function toggleMode(){setMode(isDark?"light":"dark");}
 
 // --- ACCOUNT ---
-function makeAccountUI(){showAccountModal("make");}
-function openAccountUI(){showAccountModal("open");}
+function makeAccountUI(){document.getElementById("accountText").innerText="Create Account";document.getElementById("accountModal").style.display="flex";}
+function openAccountUI(){document.getElementById("accountText").innerText="Open Account";document.getElementById("accountModal").style.display="flex";}
 function submitAccount(){
   const name=document.getElementById("accountInput").value.trim();
-  const pass=document.getElementById("accountPassword").value || "";
+  const pass=document.getElementById("accountPassword").value||"";
   if(!name){alert("Enter name");return;}
   const isCreating=document.getElementById("accountText").innerText==="Create Account";
   db.ref("users/"+name).get().then(snap=>{
     if(isCreating){
       if(snap.exists()){alert("Name taken!");return;}
       myName=name; myColor=standardColors[0];
-      db.ref("users/"+name).set({color:myColor,password:pass||null,myChats:{},friends:{},requests:{}}); 
+      db.ref("users/"+name).set({color:myColor,password:pass||null,myChats:{},friends:{},requests:{},joinTime:Date.now()}); 
       startChatUI(); closeAccountModal();
     } else{
       if(!snap.exists()){alert("Name not found!");return;}
@@ -130,69 +131,136 @@ function submitAccount(){
   });
 }
 
-// --- START CHAT UI ---
+// --- CHAT ---
 function startChatUI(){
   document.getElementById("startup").style.display="none";
   document.getElementById("chatUI").style.display="flex";
   chatDiv.style.display="none";
   document.getElementById("msg").style.display="none";
   document.getElementById("sendBtn").style.display="none";
-  setTopButtonColors();
-}
-function setTopButtonColors(){
-  const topButtons = document.querySelectorAll("#topButtons > button");
-  const btnColors = ["#3498db","#e74c3c","#f1c40f","#9b59b6","#1abc9c","#e67e22","#16a085","#9b59b6"];
-  topButtons.forEach((btn,i)=>{btn.style.background = btnColors[i%btnColors.length]; btn.style.color="#fff";});
 }
 
-// --- CHAT HANDLERS ---
-let chatListener=null;
-function submitCreateChat(){
-  const chatName=document.getElementById("createChatName").value.trim()||"New Chat";
-  const code=Math.floor(10000+Math.random()*90000).toString();
-  const members={}; members[myName]=true;
-  db.ref("chats/"+code).set({name:chatName,members});
-  db.ref("users/"+myName+"/myChats/"+code).set(chatName);
-  closeCreateChat();
-  showModalText("Chat created! Code: "+code);
-  joinChat(code);
+// --- SEND MESSAGE ---
+function sendMessage(){
+  if(sending||!currentChat)return;
+  const txt=document.getElementById("msg").value.trim();
+  if(!txt)return;
+  sending=true;
+  document.getElementById("msg").value="";
+  db.ref("messages/"+currentChat).push({user:myName,text:txt,color:myColor,timestamp:Date.now()}).then(()=>{sending=false;});
 }
-function submitJoinChat(){
-  const code=document.getElementById("joinChatCode").value.trim(); if(!code)return;
-  closeJoinChat(); joinChat(code);
-}
+
+// --- LISTEN MESSAGES ---
 function joinChat(code){
   currentChat=code; chatDiv.innerHTML=""; chatDiv.style.display="flex";document.getElementById("msg").style.display="block";document.getElementById("sendBtn").style.display="inline-block";
   db.ref("chats/"+code+"/members/"+myName).set(true);
-  db.ref("messages/"+currentChat).push({system:true,text:`${myName} joined the chat`});
+  db.ref("messages/"+currentChat).push({system:true,text:`${myName} joined the chat`,timestamp:Date.now()});
   listenMessages();
+  listenTyping();
 }
-function leaveChat(){if(!currentChat)return;db.ref("chats/"+currentChat+"/members/"+myName).remove();db.ref("chats/"+currentChat+"/members").get().then(snap=>{if(!snap.exists()) db.ref("chats/"+currentChat).remove();});currentChat=null;chatDiv.style.display="none";document.getElementById("msg").style.display="none";document.getElementById("sendBtn").style.display="none";chatDiv.innerHTML="";}
-function sendMessage(){if(sending||!currentChat)return;sending=true;const txt=document.getElementById("msg").value.trim();if(!txt){sending=false;return;}document.getElementById("msg").value="";db.ref("messages/"+currentChat).push({user:myName,text:txt,color:myColor}).then(()=>{sending=false;});}
-function listenMessages(){if(!currentChat)return; if(chatListener) db.ref("messages/"+currentChat).off("child_added",chatListener); chatListener=db.ref("messages/"+currentChat).on("child_added",snap=>{const d=snap.val();addMessageBubble(d.user||null,d.text,d.color||null,d.user===myName,d.system,snap.key);pruneMessages();});}
-function addMessageBubble(user,text,color,isMe,system,key){
+function listenMessages(){
+  if(chatListener) db.ref("messages/"+currentChat).off("child_added",chatListener);
+  chatListener=db.ref("messages/"+currentChat).on("child_added",snap=>{
+    const d=snap.val();
+    addMessageBubble(d.user||null,d.text,d.color||null,d.user===myName,d.system,snap.key,d.timestamp);
+    pruneMessages();
+  });
+}
+function addMessageBubble(user,text,color,isMe,system,key,timestamp){
   const div=document.createElement("div");
-  if(system){div.className="joinMsg";div.textContent=text;} 
-  else {div.className=isMe?"userBubble":"friendBubble";div.textContent=user+": "+text;div.style.background=color?.startsWith("linear-gradient")?color:(color||isMe?"#1abc9c":"#444");
-    if(isMe){const btnDiv=document.createElement("div");btnDiv.className="editDelete";btnDiv.innerHTML='<button onclick="editMsg(\''+key+'\')">Edit</button><button onclick="deleteMsg(\''+key+'\')">Del</button>';div.appendChild(btnDiv);
-    div.addEventListener("mouseenter",()=>{setTimeout(()=>{btnDiv.style.display="flex";},2000);});
-    div.addEventListener("mouseleave",()=>{btnDiv.style.display="none";});}}
+  if(system){div.className="joinMsg";div.textContent=`[${new Date(timestamp).toLocaleTimeString()}] ${text}`;} 
+  else {
+    div.className=isMe?"userBubble":"friendBubble";div.textContent=user+": "+text;
+    div.style.background=color?.startsWith("linear-gradient")?color:(color||isMe?"#1abc9c":"#444");
+    const timeSpan=document.createElement("span");timeSpan.className="timestamp";timeSpan.textContent=new Date(timestamp).toLocaleTimeString();
+    div.appendChild(timeSpan);
+    if(isMe){
+      const btnDiv=document.createElement("div");btnDiv.className="editDelete";btnDiv.innerHTML='<button onclick="editMsg(\''+key+'\')">Edit</button><button onclick="deleteMsg(\''+key+'\')">Del</button>';
+      div.appendChild(btnDiv);
+      div.addEventListener("mouseenter",()=>{setTimeout(()=>{btnDiv.style.display="flex";},2000);});
+      div.addEventListener("mouseleave",()=>{btnDiv.style.display="none";});
+    }
+  }
   chatDiv.appendChild(div); chatDiv.scrollTop=chatDiv.scrollHeight;
 }
 function pruneMessages(){db.ref("messages/"+currentChat).once("value").then(snap=>{if(snap.numChildren()>maxMessages){const keys=Object.keys(snap.val()).sort();const del=keys.slice(0,snap.numChildren()-maxMessages);del.forEach(k=>db.ref("messages/"+currentChat+"/"+k).remove());}});}
 function deleteMsg(key){if(!currentChat)return;db.ref("messages/"+currentChat+"/"+key).remove();}
 function editMsg(key){if(!currentChat)return;const newText=prompt("Edit message:");if(newText) db.ref("messages/"+currentChat+"/"+key+"/text").set(newText);}
 
-// --- RECENT CHATS ---
-function showRecentChats(){
-  const modalContent=document.createElement("div"); modalContent.className="modalContent"; modalContent.innerHTML="<div>Recent Chats</div>";
-  db.ref("users/"+myName+"/myChats").once("value").then(snap=>{
-    if(!snap.exists()){modalContent.innerHTML+="<div>No chats yet</div>";}
-    else {snap.forEach(c=>{const btn=document.createElement("button");btn.textContent=c.val()+" ("+c.key+")";btn.onclick=()=>{joinChat(c.key);closeModal();};modalContent.appendChild(btn);});}
-  });
-  const close=document.createElement("button");close.textContent="X";close.onclick=()=>closeModal();modalContent.appendChild(close);
-  const modal=document.getElementById("modal");modal.innerHTML="";modal.appendChild(modalContent);modal.style.display="flex";
+// --- LEAVE CHAT ---
+function leaveChat(){
+  if(!currentChat) return alert("Not in a chat");
+  db.ref(`chats/${currentChat}/members/${myName}`).remove();
+  db.ref(`chats/${currentChat}/members`).get().then(snap=>{if(!snap.exists()) db.ref(`chats/${currentChat}`).remove();});
+  currentChat=null;
+  chatDiv.style.display="none";
+  document.getElementById("msg").style.display="none";
+  document.getElementById("sendBtn").style.display="none";
+  chatDiv.innerHTML="";
+  typingDiv.innerHTML="";
+  showModalText("You left the chat.");
 }
+
+// --- TYPING INDICATOR ---
+document.getElementById("msg").addEventListener("input",()=>{
+  if(!currentChat) return;
+  db.ref(`typing/${currentChat}/${myName}`).set(true);
+  clearTimeout(typingTimeout);
+  typingTimeout=setTimeout(()=>{db.ref(`typing/${currentChat}/${myName}`).remove();},1500);
+});
+function listenTyping(){
+  db.ref(`typing/${currentChat}`).on("value",snap=>{
+    const typingUsers=[];
+    snap.forEach(s=>{if(s.key!==myName) typingUsers.push(s.key);});
+    typingDiv.textContent=typingUsers.length?typingUsers.join(", ")+" is typing...": "";
+  });
+}
+
+// --- CHAT MODALS ---
+function submitCreateChat(){
+  const name=document.getElementById("createChatName").value.trim(); if(!name)return;
+  const code=Math.floor(10000+Math.random()*89999);
+  db.ref(`chats/${code}`).set({name,members:{[myName]:true}});
+  db.ref(`users/${myName}/myChats/${code}`).set(name);
+  joinChat(code); closeCreateChat();
+}
+function submitJoinChat(){
+  const code=document.getElementById("joinChatCode").value.trim(); if(!code)return;
+  db.ref(`chats/${code}`).get().then(snap=>{
+    if(!snap.exists()){alert("Chat not found");return;}
+    db.ref(`users/${myName}/myChats/${code}`).set(snap.val().name);
+    joinChat(code); closeJoinChat();
+  });
+}
+
+// --- ACCOUNT MODAL CLEAN ---
+function openAccountModalClean(){
+  const html=`
+    <h3>Account Settings</h3>
+    <div>Username: ${myName}</div>
+    <input id="changeName" placeholder="Change username"/>
+    <input id="changePassword" type="password" placeholder="Set/change password"/>
+    <div>Pick Color:</div>
+    ${standardColors.map(c=>`<button onclick="setMyColor('${c}')"
+      style="background:${c};color:#fff;margin:2px;"> </button>`).join('')}
+    ${myName==='Nether'?secretColors.map(c=>`<button onclick="setMyColor('${c}')"
+      style="background:${c};color:#fff;margin:2px;"> </button>`).join(''):''}
+    <div style="margin-top:10px;">
+      <button onclick="openAddFriendModal()">Add Friend</button>
+      <button onclick="openFriendRequests()">Friend Requests</button>
+      <button onclick="openDMs()">DMs</button>
+      <button onclick="saveAccountChanges()">Save</button>
+    </div>`;
+  document.getElementById("accountText").innerHTML=html;
+  document.getElementById("accountModal").style.display="flex";
+}
+function setMyColor(c){myColor=c;db.ref(`users/${myName}/color`).set(c);}
+function saveAccountChanges(){const n=document.getElementById("changeName").value.trim(); const p=document.getElementById("changePassword").value.trim(); if(n)myName=n; if(p)db.ref(`users/${myName}/password`).set(p); closeAccountModal();}
+
+// TODO: Add friend/requests/DM functions
+function openAddFriendModal(){alert("Add Friend placeholder");}
+function openFriendRequests(){alert("Friend Requests placeholder");}
+function openDMs(){alert("DMs placeholder");}
 </script>
 </body>
 </html>
