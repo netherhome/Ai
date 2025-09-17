@@ -16,7 +16,7 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 .userBubble{padding:8px 12px;border-radius:15px;margin:5px 0;max-width:70%;word-wrap:break-word;align-self:flex-end;color:#fff;font-weight:500;}
 .friendBubble{padding:8px 12px;border-radius:15px;margin:5px 0;max-width:70%;word-wrap:break-word;align-self:flex-start;color:#fff;font-weight:500;}
 #toggleMode{position:absolute;top:10px;right:10px;padding:5px 10px;border-radius:6px;}
-#modal,#accountModal,#createChatModal,#friendModal,#requestsModal,#dmModal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);justify-content:center;align-items:center;z-index:50;}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);justify-content:center;align-items:center;z-index:50;}
 .modalContent{background:#222;color:#fff;padding:20px;border-radius:12px;text-align:center;min-width:250px;}
 .modalContent input{padding:8px;margin:8px;border-radius:6px;border:none;}
 .modalContent button{margin-top:5px;padding:8px 12px;}
@@ -52,22 +52,8 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 
 <!-- Modals -->
 <div id="modal" class="modal"><div class="modalContent"><div id="modalText"></div><button onclick="closeModal()">X</button></div></div>
-<div id="accountModal" class="modal">
-  <div class="modalContent">
-    <div id="accountText"></div>
-    <input id="accountInput" placeholder="Enter name"/>
-    <button onclick="submitAccount()">Submit</button>
-    <button onclick="closeAccountModal()">X</button>
-  </div>
-</div>
-<div id="createChatModal" class="modal">
-  <div class="modalContent">
-    <div>Create Chat</div>
-    <input id="createChatName" placeholder="Chat name"/>
-    <button onclick="submitCreateChat()">Create</button>
-    <button onclick="closeCreateChat()">X</button>
-  </div>
-</div>
+<div id="accountModal" class="modal"><div class="modalContent"><div id="accountText"></div><input id="accountInput" placeholder="Enter name"/><button onclick="submitAccount()">Submit</button><button onclick="closeAccountModal()">X</button></div></div>
+<div id="createChatModal" class="modal"><div class="modalContent"><div>Create Chat</div><input id="createChatName" placeholder="Chat name"/><button onclick="submitCreateChat()">Create</button><button onclick="closeCreateChat()">X</button></div></div>
 <div id="friendModal" class="modal"><div class="modalContent"><div>Add Friend</div><input id="friendInput" placeholder="Friend name"/><button onclick="submitAddFriend()">Send Request</button><button onclick="closeFriendModal()">X</button></div></div>
 <div id="requestsModal" class="modal"><div class="modalContent"><div>Friend Requests</div><div id="requestsList"></div><button onclick="closeRequestsModal()">X</button></div></div>
 <div id="dmModal" class="modal"><div class="modalContent"><div>DMs</div><div id="dmList"></div><button onclick="closeDMModal()">X</button></div></div>
@@ -76,25 +62,18 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script>
 // Firebase
-const firebaseConfig = {
-  apiKey:"AIzaSyCSh6K8e_CAswGyYuIvgMVKZ3T8b5gGKFU",
-  authDomain:"hyphonchat.firebaseapp.com",
-  databaseURL:"https://hyphonchat-default-rtdb.firebaseio.com",
-  projectId:"hyphonchat",
-  storageBucket:"hyphonchat.firebasestorage.app",
-  messagingSenderId:"172774813412",
-  appId:"1:172774813412:web:8d307b6a170bf270cfc6f1"
-};
+const firebaseConfig={apiKey:"AIzaSyCSh6K8e_CAswGyYuIvgMVKZ3T8b5gGKFU",authDomain:"hyphonchat.firebaseapp.com",databaseURL:"https://hyphonchat-default-rtdb.firebaseio.com",projectId:"hyphonchat",storageBucket:"hyphonchat.firebasestorage.app",messagingSenderId:"172774813412",appId:"1:172774813412:web:8d307b6a170bf270cfc6f1"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
 
-// Variables
+// Vars
 let myName="", myColor="#1abc9c", isDark=true;
 let currentChat=null, sending=false;
 const chatDiv=document.getElementById("chat");
+const maxMessages=40;
 
-// ===== Modal helpers =====
-function showModalText(text){document.getElementById("modalText").innerText=text;document.getElementById("modal").style.display="flex";}
+// --- Modal Helpers ---
+function showModalText(t){document.getElementById("modalText").innerText=t;document.getElementById("modal").style.display="flex";}
 function closeModal(){document.getElementById("modal").style.display="none";}
 function showAccountModal(action){document.getElementById("accountText").innerText=action==="make"?"Create Account":"Open Account";document.getElementById("accountModal").style.display="flex";}
 function closeAccountModal(){document.getElementById("accountModal").style.display="none";}
@@ -107,45 +86,49 @@ function closeRequestsModal(){document.getElementById("requestsModal").style.dis
 function showDMModal(){document.getElementById("dmList").innerHTML="";loadDMs();document.getElementById("dmModal").style.display="flex";}
 function closeDMModal(){document.getElementById("dmModal").style.display="none";}
 
-// ===== Mode =====
+// --- Mode ---
 function setMode(mode){isDark=mode==="dark";document.body.style.background=isDark?"#111":"#f5f5f5";document.body.style.color=isDark?"#eee":"#111";chatDiv.style.background=isDark?"#222":"#ddd";}
 function toggleMode(){setMode(isDark?"light":"dark");}
 
-// ===== Account System =====
+// --- Account ---
 function makeAccountUI(){showAccountModal("make");}
 function openAccountUI(){showAccountModal("open");}
 function submitAccount(){
-  const name=document.getElementById("accountInput").value.trim();
-  if(!name){alert("Enter name");return;}
+  const name=document.getElementById("accountInput").value.trim();if(!name){alert("Enter a name");return;}
   db.ref("users/"+name).get().then(snap=>{
     if(document.getElementById("accountText").innerText==="Create Account"){
-      if(snap.exists()){alert("Name taken!"); return;}
-      myName=name; myColor="#1abc9c"; db.ref("users/"+name).set({color:myColor}); startChatUI(); closeAccountModal();
-    } else{
-      if(!snap.exists()){alert("Name not found!"); return;}
-      myName=name; myColor=snap.val().color||"#1abc9c"; startChatUI(); closeAccountModal();
+      if(snap.exists()){alert("Name taken!");return;}
+      myName=name; myColor="#1abc9c"; db.ref("users/"+name).set({color:myColor});startChatUI();closeAccountModal();
+    }else{
+      if(!snap.exists()){alert("Name not found!");return;}
+      myName=name; myColor=snap.val().color||"#1abc9c"; startChatUI();closeAccountModal();
     }
   });
 }
 
-// ===== Start Chat UI =====
-function startChatUI(){document.getElementById("startup").style.display="none";document.getElementById("chatUI").style.display="flex"; chatDiv.style.display="none";document.getElementById("msg").style.display="none";document.getElementById("sendBtn").style.display="none";}
+// --- Chat UI ---
+function startChatUI(){document.getElementById("startup").style.display="none";document.getElementById("chatUI").style.display="flex";chatDiv.style.display="none";document.getElementById("msg").style.display="none";document.getElementById("sendBtn").style.display="none";}
 
-// ===== Create Chat =====
-function submitCreateChat(){
-  const chatName=document.getElementById("createChatName").value.trim()||"New Chat";
-  const code=Math.floor(10000+Math.random()*90000).toString();
-  const members={}; members[myName]=true;
-  db.ref("chats/"+code).set({name:chatName,members});
-  closeCreateChat();
-  showModalText("Chat created! Code: "+code);
-  joinChat(code);
-}
+// --- Chat system ---
+function submitCreateChat(){const chatName=document.getElementById("createChatName").value.trim()||"New Chat";const code=Math.floor(10000+Math.random()*90000).toString();const members={};members[myName]=true;db.ref("chats/"+code).set({name:chatName,members});closeCreateChat();showModalText("Chat created! Code: "+code);joinChat(code);}
+function joinChatPrompt(){const code=prompt("Enter 5-digit chat code:");if(code) joinChat(code);}
+function joinChat(code){currentChat=code;chatDiv.innerHTML="";chatDiv.style.display="flex";document.getElementById("msg").style.display="block";document.getElementById("sendBtn").style.display="inline-block";db.ref("chats/"+code+"/members/"+myName).set(true);listenMessages();}
+function leaveChat(){if(!currentChat)return;db.ref("chats/"+currentChat+"/members/"+myName).remove();db.ref("chats/"+currentChat+"/members").get().then(snap=>{if(!snap.exists()) db.ref("chats/"+currentChat).remove();});currentChat=null;chatDiv.style.display="none";document.getElementById("msg").style.display="none";document.getElementById("sendBtn").style.display="none";chatDiv.innerHTML="";}
+function listenMessages(){if(!currentChat)return;db.ref("messages/"+currentChat).on("child_added",snap=>{const d=snap.val();addMessageBubble(d.user,d.text,d.color,d.user===myName);pruneMessages();});}
+function addMessageBubble(user,text,color,isMe){const div=document.createElement("div");div.className=isMe?"userBubble":"friendBubble";div.textContent=user+": "+text;div.style.background=isMe? color : color||"#444";chatDiv.appendChild(div);chatDiv.scrollTop=99999;}
+function sendMessage(){if(sending||!currentChat)return;sending=true;const txt=document.getElementById("msg").value.trim();if(!txt){sending=false;return;}document.getElementById("msg").value="";db.ref("messages/"+currentChat).push({user:myName,text:txt,color:myColor}).then(()=>{sending=false;});}
+function pruneMessages(){db.ref("messages/"+currentChat).once("value").then(snap=>{if(snap.numChildren()>maxMessages){const keys=Object.keys(snap.val()).sort();const del=keys.slice(0,snap.numChildren()-maxMessages);del.forEach(k=>db.ref("messages/"+currentChat+"/"+k).remove());}});}
 
-// ===== Join, Leave Chat, Messages (Skeleton) =====
-// joinChat(code), leaveChat(), sendMessage(), listenMessages() would go here
-// DM system and Friend requests also implemented via Firebase paths
+// --- Friend System ---
+function showAddFriend(){showFriendModal();}
+function submitAddFriend(){const f=document.getElementById("friendInput").value.trim();if(!f||f===myName){alert("Invalid friend");return;}db.ref("friendRequests/"+f+"/"+myName).set(true);closeFriendModal();showModalText("Request sent!");}
+function loadFriendRequests(){db.ref("friendRequests/"+myName).once("value").then(snap=>{document.getElementById("requestsList").innerHTML="";snap.forEach(s=>{const div=document.createElement("div");div.textContent=s.key;const accept=document.createElement("button");accept.textContent="Accept";accept.onclick=()=>{db.ref("friends/"+myName+"/"+s.key).set(true);db.ref("friends/"+s.key+"/"+myName).set(true);db.ref("friendRequests/"+myName+"/"+s.key).remove();closeRequestsModal();showModalText("Friend added!");};document.getElementById("requestsList").appendChild(div);div.appendChild(accept);});});}
+function showFriendRequests(){showRequestsModal();}
+
+// --- DM System ---
+function showDMs(){showDMModal();}
+function loadDMs(){db.ref("friends/"+myName).once("value").then(snap=>{const dmList=document.getElementById("dmList");dmList.innerHTML="";snap.forEach(f=>{const btn=document.createElement("button");btn.textContent=f.key;btn.onclick=()=>openDM(f.key);dmList.appendChild(btn);});});}
+function openDM(friend){const code=[myName,friend].sort().join("_");joinChat(code);}
 </script>
-
 </body>
 </html>
