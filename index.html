@@ -135,7 +135,155 @@ function startChatUI(){
   document.getElementById("chatUI").style.display="flex";
 }
 
-// The rest of the chat messaging, typing, join/leave, friends, DMs, color selection, modals, etc. remain the same as in the previous snippet (the unchanged half I sent). You just append that code here after this initialization.
+<script>
+// Send message
+function sendMsg(){
+  if(!chat)return;
+  const txt=document.getElementById("msg").value.trim();
+  if(!txt)return;
+  document.getElementById("msg").value="";
+  db.ref("messages/"+chat).push({u:me,txt:txt,c:col,pic:pic,timestamp:Date.now()});
+}
+
+// Send button
+document.getElementById("sendBtn").onclick=sendMsg;
+
+// Join chat
+function joinChat(code){
+  chat=code; chatDiv.innerHTML=""; document.getElementById("msg").style.display="block"; document.getElementById("sendBtn").style.display="inline-block";
+  db.ref("chats/"+code+"/members/"+me).get().then(s=>{
+    if(!s.exists()) db.ref("messages/"+code).push({txt:`[${code}] ${me} joined`,system:true,timestamp:Date.now()});
+    db.ref("chats/"+code+"/members/"+me).set(true);
+    listenMsgs();
+    listenTyping();
+  });
+}
+
+// Listen for messages
+function listenMsgs(){
+  if(listener) db.ref("messages/"+chat).off("child_added",listener);
+  listener=db.ref("messages/"+chat).on("child_added",snap=>{
+    const d=snap.val();
+    const row=document.createElement("div"); row.className="msgRow "+(d.u==me?"me":"them");
+    if(d.system){
+      const j=document.createElement("div"); j.className="join"; j.textContent=d.txt; row.appendChild(j);
+    }else{
+      const img=document.createElement("img"); img.className="pfp"; img.src=d.pic||pic;
+      const msgdiv=document.createElement("div"); msgdiv.className="bub";
+      msgdiv.style.background=d.c?.startsWith("linear-gradient")?d.c:(d.c||"#1abc9c");
+      const ndiv=document.createElement("div"); ndiv.className="name"; ndiv.textContent=d.u; msgdiv.appendChild(ndiv);
+      const txt=document.createElement("div"); txt.textContent=d.txt; txt.style.fontWeight="bold"; msgdiv.appendChild(txt);
+      const tdiv=document.createElement("div"); tdiv.className="time"; tdiv.textContent=new Date(d.timestamp).toLocaleTimeString(); msgdiv.appendChild(tdiv);
+      row.appendChild(img); row.appendChild(msgdiv);
+    }
+    chatDiv.appendChild(row); chatDiv.scrollTop=chatDiv.scrollHeight;
+  });
+}
+
+// Leave chat
+function leaveChat(){
+  if(!chat)return;
+  if(confirm("Leave this chat?")){
+    db.ref("chats/"+chat+"/members/"+me).remove();
+    chat=null; chatDiv.innerHTML="";
+    document.getElementById("msg").style.display="none";
+    document.getElementById("sendBtn").style.display="none";
+  }
+}
+
+// Typing indicator
+document.getElementById("msg").addEventListener("input",()=>{
+  if(!chat) return;
+  db.ref("typing/"+chat+"/"+me).set(true);
+  clearTimeout(typingTimeout);
+  typingTimeout=setTimeout(()=>{db.ref("typing/"+chat+"/"+me).remove();},1500);
+});
+
+function listenTyping(){
+  if(!chat)return;
+  db.ref("typing/"+chat).on("value",snap=>{
+    const arr=[];
+    snap.forEach(s=>{if(s.key!==me) arr.push(s.key);});
+    document.getElementById("typingDiv").textContent=arr.length?arr.join(", ")+" is typing...":"";
+  });
+}
+
+// Account modal settings
+function openAccSet(){
+  accBox.innerHTML=`
+    <h3>Account Settings</h3>
+    <div>Username: ${me}</div>
+    <input id="chgName" placeholder="Change username">
+    <input id="chgPass" type="password" placeholder="Password">
+    <div>Pick Color:</div>
+  `;
+  ["#1abc9c","#3498db","#e74c3c","#f1c40f","#9b59b6"].forEach(c=>{
+    accBox.innerHTML+=`<button onclick="setCol('${c}')" style="background:${c};color:#fff;margin:2px;"></button>`;
+  });
+  if(me==="Nether") ["linear-gradient(45deg,#ff6ec4,#7873f5)","linear-gradient(45deg,#00f260,#0575e6)"].forEach(c=>{
+    accBox.innerHTML+=`<button onclick="setCol('${c}')" style="background:${c};color:#fff;margin:2px;"></button>`;
+  });
+  accBox.innerHTML+=`
+    <div style="margin-top:10px;">
+      <button onclick="addFriend()">Add Friend</button>
+      <button onclick="friendReqs()">Friend Requests</button>
+      <button onclick="openDMs()">DMs</button>
+      <button onclick="saveAcc()">Save</button>
+      <button onclick="cls('accModal')">X</button>
+    </div>
+  `;
+  accModal.style.display="flex";
+}
+
+function setCol(c){
+  if(c.includes("gradient")&&me!=="Nether") return alert("Not allowed");
+  col=c;
+  db.ref("users/"+me+"/color").set(c);
+}
+
+function saveAcc(){
+  const n=chgName.value.trim(), p=chgPass.value.trim();
+  if(n) me=n;
+  if(p) db.ref("users/"+me+"/password").set(p);
+  cls('accModal');
+}
+
+// Friends and DMs placeholders
+function addFriend(){alert("Add Friend placeholder");}
+function friendReqs(){alert("Friend Requests placeholder");}
+function openDMs(){document.getElementById("dmsModal").style.display="flex";}
+
+// My chats modal
+function openChats(){document.getElementById("chatsModal").style.display="flex";}
+
+// New chat modals
+function newChat(){document.getElementById("newModal").style.display="flex";}
+function mkChat(){cls('newModal');document.getElementById("mkModal").style.display="flex";}
+function jnChat(){cls('newModal');document.getElementById("jnModal").style.display="flex";}
+
+// Create chat
+function subMk(){
+  const n=document.getElementById("mkName").value.trim();
+  if(!n)return;
+  const code=Math.floor(10000+Math.random()*89999);
+  db.ref("chats/"+code).set({name:n,members:{[me]:true}});
+  db.ref("users/"+me+"/myChats/"+code).set(n);
+  joinChat(code);
+  cls('mkModal');
+}
+
+// Join chat
+function subJn(){
+  const c=document.getElementById("jnCode").value.trim();
+  if(!c)return;
+  db.ref("chats/"+c).get().then(s=>{
+    if(!s.exists()) return alert("Chat not found");
+    db.ref("users/"+me+"/myChats/"+c).set(s.val().name);
+    joinChat(c);
+    cls('jnModal');
+  });
+}
+</script>
 </script>
 </body>
 </html>
