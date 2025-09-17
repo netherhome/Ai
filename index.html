@@ -1,59 +1,89 @@
 <!doctype html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Insane AI Chat</title>
-  <style>
-    body { font-family:sans-serif; background:#0a0a0a; color:#eee; text-align:center; padding:20px; }
-    #chat { border:1px solid #444; padding:10px; max-width:600px; margin:auto; height:400px; overflow-y:auto; text-align:left; background:#111; }
-    textarea { width:80%; height:50px; background:#222; color:#fff; border:1px solid #555; padding:5px; }
-    button { padding:10px; margin:10px; background:#0ff; border:none; cursor:pointer; }
-    .user { color:#0f0; margin:5px 0; }
-    .bot { color:#0ff; margin:5px 0; }
-    .loading { font-style: italic; opacity:0.6; }
-  </style>
+<meta charset="utf-8">
+<title>Peer Chat</title>
+<style>
+body { font-family:sans-serif; background:#0a0a0a; color:#eee; text-align:center; padding:20px; }
+#chat { border:1px solid #444; padding:10px; max-width:600px; margin:auto; height:400px; overflow-y:auto; text-align:left; background:#111; }
+textarea { width:80%; height:50px; background:#222; color:#fff; border:1px solid #555; padding:5px; }
+button { padding:10px; margin:10px; background:#0ff; border:none; cursor:pointer; }
+.user { color:#0f0; margin:5px 0; }
+.friend { color:#0ff; margin:5px 0; }
+</style>
 </head>
 <body>
-  <h1>🤖 Hugging Face AI Chatbot</h1>
-  <div id="chat"></div>
-  <textarea id="msg" placeholder="Type a message..."></textarea><br>
-  <button onclick="send()">Send</button>
+<h1>⚡ Peer-to-Peer Chat</h1>
+<div id="chat"></div>
+<textarea id="msg" placeholder="Type a message..."></textarea><br>
+<button onclick="send()">Send</button>
 
-  <script>
-    async function query(prompt) {
-      const resp = await fetch("/chat.js", { // serverless proxy path
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt })
-      });
-      const data = await resp.json();
-      return data.reply;
-    }
+<script>
+let localConnection, dataChannel;
+const chat = document.getElementById("chat");
 
-    async function send() {
-      const msg = document.getElementById("msg").value;
-      if(!msg.trim()) return;
-      addLine("You: " + msg, "user");
-      document.getElementById("msg").value = "";
+// Use a public free WebSocket signaling server
+const signaling = new WebSocket("wss://demo-signaling-server.herokuapp.com/"); 
 
-      const botLine = addLine("AI: …", "bot loading");
-      const reply = await query(msg);
-      updateLast("AI: " + reply, botLine);
-    }
+signaling.onmessage = async (msg) => {
+  const data = JSON.parse(msg.data);
+  if(data.offer) await receiveOffer(data.offer);
+  if(data.answer) await receiveAnswer(data.answer);
+  if(data.candidate) localConnection.addIceCandidate(data.candidate);
+};
 
-    function addLine(text, cls){
-      const div = document.createElement("div");
-      div.className = cls;
-      div.textContent = text;
-      document.getElementById("chat").appendChild(div);
-      document.getElementById("chat").scrollTop = 99999;
-      return div;
-    }
+// Create connection and data channel
+async function initConnection() {
+  localConnection = new RTCPeerConnection();
 
-    function updateLast(text, div){
-      div.textContent = text;
-      div.className = "bot";
-    }
-  </script>
+  dataChannel = localConnection.createDataChannel("chat");
+  dataChannel.onmessage = (e) => addLine(e.data, "friend");
+
+  localConnection.onicecandidate = e => {
+    if(e.candidate) signaling.send(JSON.stringify({candidate:e.candidate}));
+  };
+
+  const offer = await localConnection.createOffer();
+  await localConnection.setLocalDescription(offer);
+  signaling.send(JSON.stringify({offer}));
+}
+
+async function receiveOffer(offer) {
+  localConnection = new RTCPeerConnection();
+  localConnection.ondatachannel = (e) => {
+    dataChannel = e.channel;
+    dataChannel.onmessage = (ev)=> addLine(ev.data,"friend");
+  };
+  localConnection.onicecandidate = e => {
+    if(e.candidate) signaling.send(JSON.stringify({candidate:e.candidate}));
+  };
+  await localConnection.setRemoteDescription(offer);
+  const answer = await localConnection.createAnswer();
+  await localConnection.setLocalDescription(answer);
+  signaling.send(JSON.stringify({answer}));
+}
+
+async function receiveAnswer(answer) {
+  await localConnection.setRemoteDescription(answer);
+}
+
+function addLine(text, cls){
+  const div = document.createElement("div");
+  div.className = cls;
+  div.textContent = text;
+  chat.appendChild(div);
+  chat.scrollTop = 99999;
+}
+
+function send(){
+  const msg = document.getElementById("msg").value;
+  if(!msg.trim()) return;
+  addLine("You: " + msg, "user");
+  dataChannel.send(msg);
+  document.getElementById("msg").value = "";
+}
+
+initConnection();
+</script>
 </body>
 </html>
