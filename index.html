@@ -240,6 +240,56 @@ function openDMs(){db.ref(`users/${myName}/friends`).get().then(snap=>{if(!snap.
 
 // --- Modals ---
 function closeModal(){document.getElementById("modal").style.display="none";}
+let creatingAccount = false;
+
+document.getElementById("makeAccountBtn").addEventListener("click", () => {
+  creatingAccount = true;
+  document.getElementById("accountText").innerText = "Create Account";
+  document.getElementById("accountInput").value = "";
+  document.getElementById("accountPassword").value = "";
+  document.getElementById("accountModal").style.display = "flex";
+});
+
+document.getElementById("openAccountBtn").addEventListener("click", () => {
+  creatingAccount = false;
+  document.getElementById("accountText").innerText = "Open Account";
+  document.getElementById("accountInput").value = "";
+  document.getElementById("accountPassword").value = "";
+  document.getElementById("accountModal").style.display = "flex";
+});
+
+document.getElementById("submitAccountBtn").addEventListener("click", () => {
+  const name = document.getElementById("accountInput").value.trim();
+  const pass = document.getElementById("accountPassword").value || "";
+  if (!name) { alert("Enter a name"); return; }
+
+  db.ref("users/" + name).get().then(snap => {
+    if (creatingAccount) {
+      if (snap.exists()) { alert("Name taken"); return; }
+      myName = name;
+      myColor = standardColors[0];
+      db.ref("users/" + name).set({
+        password: pass,
+        color: myColor,
+        myChats: {},
+        friends: {},
+        requests: {},
+        dms: {}
+      });
+      startChatUI();
+      closeAccountModal();
+    } else {
+      if (!snap.exists()) { alert("User not found"); return; }
+      const stored = snap.val();
+      if (stored.password && stored.password !== pass) { alert("Wrong password"); return; }
+      myName = name;
+      myColor = stored.color || standardColors[0];
+      startChatUI();
+      closeAccountModal();
+    }
+  });
+});
+
 </script>
 </body>
 </html>
