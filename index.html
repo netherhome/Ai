@@ -19,25 +19,14 @@
   <button onclick="send()">Send</button>
 
   <script>
-    const HF_TOKEN = "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"; 
-    const MODEL = "gpt2"; // small free model, works in browser
-
     async function query(prompt) {
-      try {
-        const resp = await fetch("https://api-inference.huggingface.co/models/" + MODEL, {
-          method: "POST",
-          headers: {
-            "Authorization": "Bearer " + HF_TOKEN,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ inputs: prompt })
-        });
-        const data = await resp.json();
-        if(data.error) return "AI ERROR: " + data.error;
-        return (typeof data === "string") ? data : (data?.[0]?.generated_text || JSON.stringify(data));
-      } catch(err) {
-        return "AI ERROR: " + err;
-      }
+      const resp = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt })
+      });
+      const data = await resp.json();
+      return data.reply;
     }
 
     async function send() {
@@ -45,10 +34,10 @@
       if(!msg.trim()) return;
       addLine("You: " + msg, "user");
       document.getElementById("msg").value = "";
-      addLine("AI: ...", "bot");
+      addLine("AI: …", "bot");
 
       const reply = await query(msg);
-      updateLast("AI: " + reply.trim(), "bot");
+      updateLast("AI: " + reply, "bot");
     }
 
     function addLine(text, cls){
