@@ -1,25 +1,30 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><title>HyphonChat</title>
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>HyphonChat Deluxe</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 <style>
-body{margin:0;font-family:'Inter',sans-serif;background:#111;color:#eee;height:100vh;display:flex;flex-direction:column;}
-header{background:#222;padding:8px;display:flex;justify-content:space-between;align-items:center;}
-header button{margin:0 4px;padding:6px 10px;border:none;border-radius:6px;cursor:pointer;}
-#chatUI{flex:1;display:flex;flex-direction:column;display:none;}
-#chatContainer{flex:1;display:flex;flex-direction:column;padding:10px;}
-#chat{flex:1;overflow-y:auto;background:#222;border:1px solid #444;border-radius:10px;padding:10px;display:flex;flex-direction:column;}
-textarea{border:none;border-radius:8px;padding:8px;margin-top:6px;resize:none;}
-button{border:none;border-radius:6px;padding:6px 10px;cursor:pointer;margin:2px;}
-.bub{max-width:60%;padding:8px 12px;border-radius:12px;margin:3px;word-wrap:break-word;}
+body{margin:0;font-family:'Inter',sans-serif;background:#0f0f0f;color:#eee;height:100vh;display:flex;flex-direction:column;}
+header{display:flex;justify-content:space-between;align-items:center;padding:10px;background:linear-gradient(135deg,#1abc9c,#3498db);box-shadow:0 4px 10px rgba(0,0,0,0.5);border-bottom-left-radius:12px;border-bottom-right-radius:12px;}
+header button{margin:0 4px;padding:8px 14px;border:none;border-radius:8px;cursor:pointer;background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;font-weight:600;transition:0.2s;}
+header button:hover{filter:brightness(1.1);}
+#chatUI{flex:1;display:none;flex-direction:column;}
+#chatContainer{flex:1;display:flex;flex-direction:column;padding:12px;}
+#chat{flex:1;overflow-y:auto;background:#1a1a1a;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px;scroll-behavior:smooth;}
+textarea{border:none;border-radius:8px;padding:10px;margin-top:8px;resize:none;background:#222;color:#fff;}
+button{border:none;border-radius:6px;padding:6px 12px;cursor:pointer;margin:2px;}
+.bub{max-width:65%;padding:10px 14px;border-radius:16px;word-wrap:break-word;box-shadow:0 2px 5px rgba(0,0,0,0.4);}
 .me{align-self:flex-end;}
 .them{align-self:flex-start;}
-.name{font-size:12px;font-weight:600;margin:2px 4px;color:#ccc;}
+.name{font-size:12px;font-weight:600;margin:0 0 2px 0;color:#ccc;}
 .time{font-size:10px;color:#aaa;margin-left:6px;}
-.pfp{width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;}
-.msgRow{display:flex;align-items:flex-start;gap:6px;}
+.pfp{width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;box-shadow:0 2px 4px rgba(0,0,0,0.5);}
+.msgRow{display:flex;align-items:flex-start;gap:8px;}
 .msgRow.me{flex-direction:row-reverse;}
 .join{font-style:italic;color:#aaa;font-size:12px;text-align:center;margin:4px 0;}
 .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);align-items:center;justify-content:center;z-index:50;}
-.modalContent{background:#222;color:#fff;padding:15px;border-radius:10px;min-width:250px;max-height:80%;overflow:auto;}
+.modalContent{background:#222;color:#fff;padding:18px;border-radius:12px;min-width:280px;max-height:80%;overflow:auto;box-shadow:0 4px 12px rgba(0,0,0,0.7);}
+.modalContent input{padding:8px;margin:6px 0;border-radius:6px;border:none;width:90%;}
+.modalContent button{margin:4px;}
+.friendItem{display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;}
+.friendItem:hover{background:rgba(255,255,255,0.05);border-radius:6px;}
 </style></head>
 <body>
 
@@ -33,6 +38,7 @@ button{border:none;border-radius:6px;padding:6px 10px;cursor:pointer;margin:2px;
 <button onclick="openChats()">My Chats</button>
 <button onclick="newChat()">New Chat</button>
 <button onclick="leaveChat()">Leave Chat</button>
+<button onclick="openDMs()">DMs</button>
 </div>
 </header>
 
@@ -57,36 +63,33 @@ button{border:none;border-radius:6px;padding:6px 10px;cursor:pointer;margin:2px;
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script>
-// Firebase
 const fb={apiKey:"AIzaSyCSh6K8e_CAswGyYuIvgMVKZ3T8b5gGKFU",authDomain:"hyphonchat.firebaseapp.com",databaseURL:"https://hyphonchat-default-rtdb.firebaseio.com",projectId:"hyphonchat",storageBucket:"hyphonchat.firebasestorage.app",messagingSenderId:"172774813412",appId:"1:172774813412:web:8d307b6a170bf270cfc6f1"};
 firebase.initializeApp(fb);const db=firebase.database();
 
-let me="",col="#1abc9c",pic="",chat=null,listener=null,lastUser="",lastTime=0,typingTimeout;
+let me="",col="#1abc9c",pic="https://i.imgur.com/4ZQZ4bU.png",chat=null,listener=null,lastUser="",lastTime=0,typingTimeout;
 const chatDiv=document.getElementById("chat");
 
-// UI helpers
 const cls=id=>document.getElementById(id).style.display="none";
 function accUI(title){document.getElementById("accBox").innerHTML=`<h3>${title}</h3><input id="accName" placeholder="Name"><input id="accPass" type="password" placeholder="Password"><button onclick="subAcc('${title}')">Submit</button><button onclick="cls('accModal')">X</button>`;document.getElementById("accModal").style.display="flex";}
 function makeAcc(){accUI("Create");}
 function openAcc(){accUI("Open");}
 
-// Submit account
 function subAcc(type){
 const n=accName.value.trim(),p=accPass.value;
 if(!n)return;
 db.ref("users/"+n).get().then(s=>{
 if(type=="Create"){if(s.exists())return alert("Name taken");me=n;col="#1abc9c";pic="https://i.imgur.com/4ZQZ4bU.png";db.ref("users/"+n).set({color:col,password:p||null,pic,friends:{},requests:{},myChats:{},joinTime:Date.now()});start();cls('accModal');}
 else{if(!s.exists())return alert("No user");if(s.val().password&&s.val().password!==p)return alert("Wrong pass");me=n;col=s.val().color||col;pic=s.val().pic||"https://i.imgur.com/4ZQZ4bU.png";start();cls('accModal');}
-});}
+});
+}
 
-// Start chat UI
 function start(){document.getElementById("chatUI").style.display="flex";listenTyping();}
 
-// Chat functions
+// Messages
 function sendMsg(){if(!chat)return;const t=msg.value.trim();if(!t)return;msg.value="";db.ref("messages/"+chat).push({u:me,txt:t,c:col,p:pic,ts:Date.now()});}
-function joinChat(c){chat=c;chatDiv.innerHTML="";if(listener)db.ref("messages/"+c).off("child_added",listener);listener=db.ref("messages/"+c).on("child_added",s=>{let d=s.val();addBubble(d);});}
+function joinChat(c){chat=c;chatDiv.innerHTML="";if(listener)db.ref("messages/"+c).off("child_added",listener);listener=db.ref("messages/"+c).on("child_added",s=>{addBubble(s.val());});}
 
-// Add bubble
+// Bubble display
 function addBubble(d){
 let row=document.createElement("div");row.className="msgRow"+(d.u===me?" me":"");
 if(!d.system){
@@ -110,13 +113,12 @@ typingTimeout=setTimeout(()=>{db.ref(`typing/${chat}/${me}`).remove();},1500);
 });
 function listenTyping(){db.ref(`typing/${chat}`).on("value",snap=>{let users=[];snap.forEach(s=>{if(s.key!==me)users.push(s.key);});typingDiv.textContent=users.length?users.join(", ")+" is typing...":"";});}
 
-// Chat creation/join
+// Chat create/join
 function newChat(){newModal.style.display="flex";}
 function mkChat(){cls('newModal');mkModal.style.display="flex";}
 function jnChat(){cls('newModal');jnModal.style.display="flex";}
 function subMk(){const n=mkName.value.trim();if(!n)return;const c=Math.floor(10000+Math.random()*89999);db.ref("chats/"+c).set({name:n,members:{[me]:true}});db.ref("users/"+me+"/myChats/"+c).set(n);db.ref("messages/"+c).push({system:true,txt:`[${c}] ${me} joined`,ts:Date.now()});joinChat(c);cls('mkModal');}
-function subJn(){const c=jnCode.value.trim();db.ref("chats/"+c).get().
-then(snap=>{if(!snap.exists())return alert("No chat");db.ref("users/"+me+"/myChats/"+c).set(snap.val().name);joinChat(c);cls('jnModal');});}
+function subJn(){const c=jnCode.value.trim();db.ref("chats/"+c).get().then(snap=>{if(!snap.exists())return alert("No chat");db.ref("users/"+me+"/myChats/"+c).set(snap.val().name);joinChat(c);cls('jnModal');});}
 
 // Leave chat
 function leaveChat(){if(!chat)return;if(confirm("Leave chat?")){db.ref("users/"+me+"/myChats/"+chat).remove();chat=null;chatDiv.innerHTML="";}}
@@ -145,6 +147,7 @@ document.getElementById("accBox").innerHTML=`
 <input id="newPic" placeholder="Profile Pic URL" value="${u.pic||''}">
 <div>Pick Color:</div>
 ${["#1abc9c","#3498db","#e74c3c","#f1c40f","#9b59b6"].map(c=>`<button style="background:${c}" onclick="setCol('${c}')"></button>`).join('')}
+${me==='Nether'?["linear-gradient(45deg,#ff6ec4,#7873f5)","linear-gradient(45deg,#00f260,#0575e6)","linear-gradient(45deg,#ff512f,#dd2476)"].map(g=>`<button style="background:${g}" onclick="setCol('${g}')"></button>`).join(''):''}
 <br>
 <button onclick="saveAcc()">Save</button>
 <button onclick="openFriendModal()">Add Friend</button>
@@ -158,10 +161,36 @@ accModal.style.display="flex";
 function setCol(c){col=c;db.ref("users/"+me+"/color").set(c);}
 function saveAcc(){const u=newPic.value.trim();if(u){pic=u;db.ref("users/"+me+"/pic").set(u);}cls('accModal');}
 
-// Friends & DMs placeholders
-function openFriendModal(){alert("Add Friend feature placeholder");}
-function openFriendReq(){alert("Friend Requests placeholder");}
-function openDMs(){alert("DMs placeholder");}
+// Friends & DMs
+function openFriendModal(){
+let box=document.getElementById("accBox");box.innerHTML=`<h3>Add Friend</h3><input id="friendName" placeholder="Friend Username"><button onclick="sendFriendReq()">Send Request</button><button onclick="cls('accModal')">X</button>`;accModal.style.display="flex";}
+function sendFriendReq(){let f=friendName.value.trim();if(!f||f===me)return alert("Invalid");db.ref(`users/${f}/requests/${me}`).set(true);alert("Request sent");cls('accModal');}
+
+function openFriendReq(){
+let fr=document.getElementById("friendRequests");fr.innerHTML="";
+db.ref(`users/${me}/requests`).once("value").then(snap=>{
+snap.forEach(r=>{
+let b=document.createElement("div");b.className="friendItem";b.textContent=r.key;
+let acc=document.createElement("button");acc.textContent="Accept";acc.onclick=()=>{db.ref(`users/${me}/friends/${r.key}`).set(true);db.ref(`users/${r.key}/friends/${me}`).set(true);db.ref(`users/${me}/requests/${r.key}`).remove();openFriendReq();};
+let rej=document.createElement("button");rej.textContent="Reject";rej.onclick=()=>{db.ref(`users/${me}/requests/${r.key}`).remove();openFriendReq();};
+b.appendChild(acc);b.appendChild(rej);
+fr.appendChild(b);
+});
+friendReqModal.style.display="flex";
+});
+}
+
+// DMs
+function openDMs(){
+let dms=document.getElementById("dmsList");dms.innerHTML="";
+db.ref(`users/${me}/friends`).once("value").then(snap=>{
+snap.forEach(f=>{
+let b=document.createElement("div");b.className="friendItem";b.textContent=f.key;
+b.onclick=()=>{let code=[me,f.key].sort().join("_");joinChat("dm_"+code);cls('dmsModal');};
+dms.appendChild(b);
+});
+dmsModal.style.display="flex";
+});
+}
 </script>
-</body>
-</html>
+</body></html>
