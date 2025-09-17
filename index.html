@@ -23,13 +23,14 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 .modalContent input{padding:8px;margin:8px;border-radius:6px;border:none;}
 .modalContent button{margin-top:5px;padding:8px 12px;}
 .userNameDiv{font-weight:bold;margin-bottom:2px;}
+header{display:flex;gap:5px;padding:10px;justify-content:center;}
 .pfp{width:32px;height:32px;border-radius:50%;margin-right:5px;}
-.msgRow{display:flex;align-items:flex-start;margin-bottom:5px;}
-.bub{padding:6px 10px;border-radius:12px;max-width:400px;word-wrap:break-word;display:flex;flex-direction:column;}
-.bub .name{font-weight:bold;margin-bottom:2px;}
-.bub .time{font-size:10px;color:#ccc;margin-top:2px;}
-.me{justify-content:flex-end;}
-.them{justify-content:flex-start;}
+.msgRow{display:flex;align-items:flex-start;gap:5px;margin-bottom:5px;}
+.msgRow.me{justify-content:flex-end;}
+.msgBubble{padding:6px 10px;border-radius:12px;max-width:80%;word-wrap:break-word;display:flex;flex-direction:column;}
+.msgBubble .name{font-weight:bold;margin-bottom:2px;}
+.msgBubble .txt{font-weight:bold;}
+.msgBubble .time{font-size:10px;color:#ccc;align-self:flex-end;}
 </style>
 </head>
 <body>
@@ -41,6 +42,15 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
     <button id="signupBtn">Sign Up for Free</button>
   </div>
 </div>
+
+<!-- Header Buttons -->
+<header>
+  <button id="accBtn">Account</button>
+  <button id="chatsBtn">My Chats</button>
+  <button id="newChatBtn">New Chat</button>
+  <button id="leaveBtn">Leave Chat</button>
+  <button id="dmsBtn">DMs</button>
+</header>
 
 <div id="chatUI">
   <div id="chatContainer">
@@ -63,7 +73,7 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script>
-// Firebase setup
+// Firebase
 const fb={apiKey:"AIzaSyCSh6K8e_CAswGyYuIvgMVKZ3T8b5gGKFU",authDomain:"hyphonchat.firebaseapp.com",databaseURL:"https://hyphonchat-default-rtdb.firebaseio.com",projectId:"hyphonchat",storageBucket:"hyphonchat.firebasestorage.app",messagingSenderId:"172774813412",appId:"1:172774813412:web:8d307b6a170bf270cfc6f1"};
 firebase.initializeApp(fb);
 const db=firebase.database();
@@ -72,13 +82,13 @@ const db=firebase.database();
 let me="", myColor="#1abc9c", myPfp="https://th.bing.com/th/id/OIP.Xx93W3aTtFensmWsSFuDYAHaHa?w=202&h=202&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3";
 let currentChat=null, sending=false;
 let chatListener=null, typingTimeout;
+let listener=null;
 const maxMessages=40;
 const standardColors=["#1abc9c","#3498db","#e74c3c","#f1c40f","#9b59b6"];
 const secretColors=["linear-gradient(45deg,#ff6ec4,#7873f5)","linear-gradient(45deg,#00f260,#0575e6)","linear-gradient(45deg,#ff512f,#dd2476)"];
 const chatDiv=document.getElementById("chat");
-let listener=null;
 
-// Startup Sign Up
+// --- Startup Button ---
 document.addEventListener("DOMContentLoaded", ()=>{
   document.getElementById("signupBtn").addEventListener("click", ()=>{
     accUI('Create');
@@ -86,7 +96,14 @@ document.addEventListener("DOMContentLoaded", ()=>{
   });
 });
 
-// Account UI
+// --- Header Button Listeners ---
+document.getElementById("accBtn").onclick = () => accUI('Open');
+document.getElementById("chatsBtn").onclick = openChats;
+document.getElementById("newChatBtn").onclick = newChat;
+document.getElementById("leaveBtn").onclick = leaveChat;
+document.getElementById("dmsBtn").onclick = openDMs;
+
+// --- Account UI ---
 function accUI(type){
   const accModal=document.getElementById("accModal");
   const accBox=document.getElementById("accBox");
@@ -104,7 +121,7 @@ function accUI(type){
   accModal.style.display="flex";
 }
 
-// Submit account
+// --- Submit Account ---
 function subAcc(type){
   const n=document.getElementById("accName").value.trim();
   const p=document.getElementById("accPass").value;
@@ -128,26 +145,28 @@ function subAcc(type){
   });
 }
 
-// Start chat UI
+// --- Start Chat UI ---
 function startChatUI(){
   document.getElementById("chatUI").style.display="flex";
   chatDiv.innerHTML="";
   document.getElementById("msg").value="";
 }
 
-// Send message
-function sendMsg(){
-  if(!currentChat)return;
+// --- Send Message ---
+document.getElementById("sendBtn").onclick=()=>{
+  if(!currentChat) return;
   const txt=document.getElementById("msg").value.trim();
-  if(!txt)return;
+  if(!txt) return;
   document.getElementById("msg").value="";
   db.ref("messages/"+currentChat).push({u:me,txt:txt,c:myColor,pic:myPfp,timestamp:Date.now()});
-}
-document.getElementById("sendBtn").onclick=sendMsg;
+};
 
-// Join chat
+// --- Join Chat ---
 function joinChat(code){
-  currentChat=code; chatDiv.innerHTML=""; document.getElementById("msg").style.display="block"; document.getElementById("sendBtn").style.display="inline-block";
+  currentChat=code;
+  chatDiv.innerHTML="";
+  document.getElementById("msg").style.display="block"; 
+  document.getElementById("sendBtn").style.display="inline-block";
   db.ref("chats/"+code+"/members/"+me).get().then(s=>{
     if(!s.exists()) db.ref("messages/"+code).push({txt:`[${code}] ${me} joined`,system:true,timestamp:Date.now()});
     db.ref("chats/"+code+"/members/"+me).set(true);
@@ -156,7 +175,7 @@ function joinChat(code){
   });
 }
 
-// Listen messages
+// --- Listen for Messages ---
 function listenMsgs(){
   if(listener) db.ref("messages/"+currentChat).off("child_added",listener);
   listener=db.ref("messages/"+currentChat).on("child_added",snap=>{
@@ -166,29 +185,30 @@ function listenMsgs(){
       const j=document.createElement("div"); j.className="joinMsg"; j.textContent=d.txt; row.appendChild(j);
     }else{
       const img=document.createElement("img"); img.className="pfp"; img.src=d.pic||myPfp;
-      const msgdiv=document.createElement("div"); msgdiv.className="bub"; msgdiv.style.background=d.c?.startsWith("linear-gradient")?d.c:(d.c||myColor);
+      const msgdiv=document.createElement("div"); msgdiv.className="msgBubble";
+      msgdiv.style.background=d.c?.startsWith("linear-gradient")?d.c:(d.c||"#1abc9c");
       const ndiv=document.createElement("div"); ndiv.className="name"; ndiv.textContent=d.u; msgdiv.appendChild(ndiv);
-      const txt=document.createElement("div"); txt.textContent=d.txt; txt.style.fontWeight="bold"; msgdiv.appendChild(txt);
+      const txt=document.createElement("div"); txt.className="txt"; txt.textContent=d.txt; msgdiv.appendChild(txt);
       const tdiv=document.createElement("div"); tdiv.className="time"; tdiv.textContent=new Date(d.timestamp).toLocaleTimeString(); msgdiv.appendChild(tdiv);
       row.appendChild(img); row.appendChild(msgdiv);
     }
-    chatDiv.appendChild(row);
-    chatDiv.scrollTop=chatDiv.scrollHeight;
+    chatDiv.appendChild(row); chatDiv.scrollTop=chatDiv.scrollHeight;
   });
 }
 
-// Leave chat
+// --- Leave Chat ---
 function leaveChat(){
-  if(!currentChat)return;
+  if(!currentChat) return;
   if(confirm("Leave this chat?")){
     db.ref("chats/"+currentChat+"/members/"+me).remove();
-    currentChat=null; chatDiv.innerHTML="";
+    currentChat=null;
+    chatDiv.innerHTML="";
     document.getElementById("msg").style.display="none";
     document.getElementById("sendBtn").style.display="none";
   }
 }
 
-// Typing indicator
+// --- Typing Indicator ---
 document.getElementById("msg").addEventListener("input",()=>{
   if(!currentChat) return;
   db.ref("typing/"+currentChat+"/"+me).set(true);
@@ -197,7 +217,7 @@ document.getElementById("msg").addEventListener("input",()=>{
 });
 
 function listenTyping(){
-  if(!currentChat)return;
+  if(!currentChat) return;
   db.ref("typing/"+currentChat).on("value",snap=>{
     const arr=[];
     snap.forEach(s=>{if(s.key!==me) arr.push(s.key);});
@@ -205,7 +225,7 @@ function listenTyping(){
   });
 }
 
-// Account modal
+// --- Account Settings ---
 function openAccSet(){
   const accBox=document.getElementById("accBox");
   accBox.innerHTML=`
@@ -215,8 +235,12 @@ function openAccSet(){
     <input id="chgPass" type="password" placeholder="Password">
     <div>Pick Color:</div>
   `;
-  standardColors.forEach(c=>{ accBox.innerHTML+=`<button onclick="setCol('${c}')" style="background:${c};color:#fff;margin:2px;"></button>`; });
-  if(me==="Nether") secretColors.forEach(c=>{ accBox.innerHTML+=`<button onclick="setCol('${c}')" style="background:${c};color:#fff;margin:2px;"></button>`; });
+  standardColors.forEach(c=>{
+    accBox.innerHTML+=`<button onclick="setCol('${c}')" style="background:${c};color:#fff;margin:2px;"></button>`;
+  });
+  if(me==="Nether") secretColors.forEach(c=>{
+    accBox.innerHTML+=`<button onclick="setCol('${c}')" style="background:${c};color:#fff;margin:2px;"></button>`;
+  });
   accBox.innerHTML+=`
     <div style="margin-top:10px;">
       <button onclick="addFriend()">Add Friend</button>
@@ -242,19 +266,20 @@ function saveAcc(){
   cls('accModal');
 }
 
-// Friends / DMs
+// --- Friends and DMs ---
 function addFriend(){alert("Add Friend placeholder");}
 function friendReqs(){alert("Friend Requests placeholder");}
 function openDMs(){document.getElementById("dmsModal").style.display="flex";}
 
-// Modals helpers
-function cls(id){document.getElementById(id).style.display="none";}
+// --- My Chats ---
 function openChats(){document.getElementById("chatsModal").style.display="flex";}
+
+// --- New Chat ---
 function newChat(){document.getElementById("newModal").style.display="flex";}
 function mkChat(){cls('newModal');document.getElementById("mkModal").style.display="flex";}
 function jnChat(){cls('newModal');document.getElementById("jnModal").style.display="flex";}
 
-// Create / Join chat
+// --- Create Chat ---
 function subMk(){
   const n=document.getElementById("mkName").value.trim();
   if(!n)return;
@@ -265,6 +290,7 @@ function subMk(){
   cls('mkModal');
 }
 
+// --- Join Chat ---
 function subJn(){
   const c=document.getElementById("jnCode").value.trim();
   if(!c)return;
@@ -275,6 +301,9 @@ function subJn(){
     cls('jnModal');
   });
 }
+
+// --- Close Modal ---
+function cls(id){document.getElementById(id).style.display="none";}
 </script>
 </body>
 </html>
