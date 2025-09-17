@@ -18,21 +18,38 @@ body{
   color: var(--text-dark);
   overflow:hidden;
 }
-#startup, #chatUI {
+#startup,#chatUI{
   position:fixed; top:0; left:0; width:100%; height:100%;
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   background:var(--bg-dark); z-index:10;
 }
-#chatUI { display:none; flex-direction:column; padding:20px; box-sizing:border-box; }
-#chatContainer { display:flex; flex-direction:column; width:100%; max-width:900px; flex:1; }
-#chatList { display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
-.chatItem { padding:5px 10px; background:#333; border-radius:8px; cursor:pointer; user-select:none; }
-#chat { border:1px solid #444; padding:10px; height:400px; overflow-y:auto; border-radius:12px; background:#222; flex:1; display:flex; flex-direction:column; }
-textarea { width:100%; max-width:80%; height:50px; padding:10px; border-radius:8px; border:1px solid #555; margin-top:10px; resize:none; }
-button { padding:10px 15px; border:none; border-radius:8px; margin-left:5px; cursor:pointer; }
-.userBubble { padding:8px 12px; border-radius:15px; margin:5px 0; max-width:70%; word-wrap:break-word; align-self:flex-end; color:#fff; font-weight:500; }
-.friendBubble { padding:8px 12px; border-radius:15px; margin:5px 0; max-width:70%; word-wrap:break-word; align-self:flex-start; color:#fff; font-weight:500; }
-#toggleMode { position:absolute; top:10px; right:10px; padding:5px 10px; border-radius:6px; }
+#chatUI{display:none; flex-direction:column; padding:20px; box-sizing:border-box;}
+#chatContainer{display:flex; flex-direction:column; width:100%; max-width:900px; flex:1;}
+#chatList{display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;}
+.chatItem{padding:5px 10px; background:#333; border-radius:8px; cursor:pointer; user-select:none;}
+#chat{border:1px solid #444; padding:10px; height:400px; overflow-y:auto; border-radius:12px; background:#222; flex:1; display:flex; flex-direction:column;}
+textarea{width:100%; max-width:80%; height:50px; padding:10px; border-radius:8px; border:1px solid #555; margin-top:10px; resize:none;}
+button{padding:10px 15px; border:none; border-radius:8px; margin-left:5px; cursor:pointer;}
+.userBubble{padding:8px 12px; border-radius:15px; margin:5px 0; max-width:70%; word-wrap:break-word; align-self:flex-end; color:#fff; font-weight:500;}
+.friendBubble{padding:8px 12px; border-radius:15px; margin:5px 0; max-width:70%; word-wrap:break-word; align-self:flex-start; color:#fff; font-weight:500;}
+#toggleMode{position:absolute; top:10px; right:10px; padding:5px 10px; border-radius:6px;}
+#modal{
+  display:none;
+  position:fixed;
+  top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.7);
+  justify-content:center;align-items:center;
+  z-index:50;
+}
+#modalContent{
+  background:#222;
+  color:#fff;
+  padding:20px;
+  border-radius:12px;
+  text-align:center;
+  min-width:200px;
+}
+#modalClose{margin-top:10px;padding:5px 10px;border:none;border-radius:6px;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -63,10 +80,23 @@ button { padding:10px 15px; border:none; border-radius:8px; margin-left:5px; cur
 <div id="chatUI">
   <button id="toggleMode" onclick="toggleMode()">Toggle Light/Dark</button>
   <div id="chatContainer">
-    <div id="chatList"></div>
+    <div>
+      <button onclick="showRecentChats()">Recent Chats</button>
+      <button onclick="createChat()">Create Chat</button>
+      <button onclick="joinChatPrompt()">Join Chat</button>
+    </div>
+    <div id="chatList" style="display:none;"></div>
     <div id="chat"></div>
     <textarea id="msg" placeholder="Type a message..."></textarea>
     <button onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+<!-- Modal for showing chat code -->
+<div id="modal">
+  <div id="modalContent">
+    <div id="modalText"></div>
+    <button id="modalClose" onclick="closeModal()">X</button>
   </div>
 </div>
 
@@ -75,7 +105,7 @@ button { padding:10px 15px; border:none; border-radius:8px; margin-left:5px; cur
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
 <script>
-// ===== Firebase config =====
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyCSh6K8e_CAswGyYuIvgMVKZ3T8b5gGKFU",
   authDomain: "hyphonchat.firebaseapp.com",
@@ -88,80 +118,71 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// ===== Variables =====
+// Variables
 let myName="", myColor="#1abc9c", isDark=true;
 let currentChat=null;
 const maxMessages=40;
 const chatDiv=document.getElementById("chat");
 const chatListDiv=document.getElementById("chatList");
 
-// ===== Light/Dark mode =====
-function setMode(mode){
-  isDark = mode==="dark";
-  document.body.style.background = isDark? "#111":"#f5f5f5";
-  document.body.style.color = isDark? "#eee":"#111";
-  document.getElementById("chat").style.background = isDark? "#222":"#ddd";
-}
-function toggleMode(){ setMode(isDark?"light":"dark"); }
+// Modal functions
+function showModal(text){document.getElementById("modalText").innerText=text;document.getElementById("modal").style.display="flex";}
+function closeModal(){document.getElementById("modal").style.display="none";}
 
-// ===== Startup =====
+// Mode functions
+function setMode(mode){isDark=mode==="dark";document.body.style.background=isDark?"#111":"#f5f5f5";document.body.style.color=isDark?"#eee":"#111";document.getElementById("chat").style.background=isDark?"#222":"#ddd";}
+function toggleMode(){setMode(isDark?"light":"dark");}
+
+// Startup
 function startChatUI(){
   const nameVal=document.getElementById("nameInput").value.trim();
-  myName = nameVal||("User"+Math.floor(Math.random()*1000));
+  myName=nameVal||("User"+Math.floor(Math.random()*1000));
   myColor=document.getElementById("colorSelect").value;
   document.getElementById("startup").style.display="none";
   document.getElementById("chatUI").style.display="flex";
-  loadChatList();
 }
 
-// ===== Chat List & Group Chats =====
-function loadChatList(){
-  chatListDiv.innerHTML="";
+// Recent chats
+function showRecentChats(){
+  chatListDiv.innerHTML=""; chatListDiv.style.display="flex";
   db.ref("chats").once("value").then(snap=>{
-    snap.forEach(child=>{
-      const c=child.key;
-      const chatName = child.val().name||c;
-      const div=document.createElement("div");
-      div.className="chatItem";
-      div.textContent=chatName;
-      div.onclick=()=>joinChat(c);
-      chatListDiv.appendChild(div);
+    snap.forEach(c=>{
+      const chatKey=c.key;
+      const members=c.val().members||{};
+      if(members[myName]){
+        const div=document.createElement("div");
+        div.className="chatItem"; div.textContent=c.val().name||chatKey;
+        div.onclick=()=>joinChat(chatKey); chatListDiv.appendChild(div);
+      }
     });
-    // Buttons
-    const createBtn=document.createElement("div");
-    createBtn.className="chatItem";
-    createBtn.textContent="Create Chat";
-    createBtn.onclick=createChat;
-    chatListDiv.appendChild(createBtn);
-
-    const joinBtn=document.createElement("div");
-    joinBtn.className="chatItem";
-    joinBtn.textContent="Join Chat";
-    joinBtn.onclick=joinChatPrompt;
-    chatListDiv.appendChild(joinBtn);
   });
 }
 
-// ===== Join/Create Chat =====
+// Create chat
+function createChat(){
+  const code=Math.floor(10000+Math.random()*90000).toString();
+  const name=prompt("Enter chat name (optional)","New Chat")||"New Chat";
+  const members={}; members[myName]=true;
+  db.ref("chats/"+code).set({name,members});
+  showModal("Chat created! Code: "+code);
+  joinChat(code);
+}
+
+// Join chat prompt
 function joinChatPrompt(){
   const code=prompt("Enter 5-digit chat code:");
   if(code) joinChat(code);
 }
-function createChat(){
-  const code=Math.floor(10000+Math.random()*90000).toString();
-  const name=prompt("Enter chat name (optional)","New Chat")||"New Chat";
-  db.ref("chats/"+code).set({name});
-  joinChat(code);
-}
 
-// ===== Join Chat =====
+// Join chat
 function joinChat(chatCode){
-  currentChat=chatCode;
-  chatDiv.innerHTML="";
+  currentChat=chatCode; chatDiv.innerHTML="";
+  // Add user to members
+  db.ref("chats/"+chatCode+"/members/"+myName).set(true);
   listenMessages();
 }
 
-// ===== Listen messages =====
+// Listen messages
 function listenMessages(){
   if(!currentChat) return;
   db.ref("messages/"+currentChat).on("child_added",snap=>{
@@ -171,17 +192,17 @@ function listenMessages(){
   });
 }
 
-// ===== Add message =====
+// Add message
 function addMessageBubble(user,text,color,isMe){
   const div=document.createElement("div");
   div.className=isMe?"userBubble":"friendBubble";
   div.textContent=user+": "+text;
-  div.style.background = isMe? color : color||"#444";
+  div.style.background=isMe? color : color||"#444";
   chatDiv.appendChild(div);
   chatDiv.scrollTop=99999;
 }
 
-// ===== Send message =====
+// Send message
 function sendMessage(){
   const txt=document.getElementById("msg").value.trim();
   if(!txt || !currentChat) return;
@@ -189,7 +210,7 @@ function sendMessage(){
   document.getElementById("msg").value="";
 }
 
-// ===== Prune old messages =====
+// Prune old messages
 function pruneMessages(){
   db.ref("messages/"+currentChat).once("value").then(snap=>{
     if(snap.numChildren()>maxMessages){
@@ -200,7 +221,7 @@ function pruneMessages(){
   });
 }
 
-// ===== Initial mode =====
+// Initial mode
 setMode("dark");
 </script>
 
