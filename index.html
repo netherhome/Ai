@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Peer Chat</title>
+<title>Friends Chat</title>
 <style>
 body { font-family:sans-serif; background:#0a0a0a; color:#eee; text-align:center; padding:20px; }
 #chat { border:1px solid #444; padding:10px; max-width:600px; margin:auto; height:400px; overflow-y:auto; text-align:left; background:#111; }
@@ -13,83 +13,58 @@ button { padding:10px; margin:10px; background:#0ff; border:none; cursor:pointer
 </style>
 </head>
 <body>
-<h1>⚡ Peer-to-Peer Chat</h1>
+<h1>⚡ Friends Chat</h1>
 <div id="chat"></div>
 <textarea id="msg" placeholder="Type a message..."></textarea><br>
 <button onclick="send()">Send</button>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
 <script>
-let localConnection, dataChannel;
-const chat = document.getElementById("chat");
-
-// Random username from list
-const usernames = ["Neo", "Pixel", "Glitch", "Cipher", "Echo", "Nova", "Vortex", "Shadow", "Blip", "Spark",
-                   "Quantum", "Frost", "Byte", "Laser", "Pulse", "Zen", "Orbit", "Drift", "Flux", "Arc"];
-const myName = usernames[Math.floor(Math.random()*usernames.length)];
-
-// Free public WebSocket signaling server
-const signaling = new WebSocket("wss://demo-signaling-server.herokuapp.com/"); 
-
-signaling.onmessage = async (msg) => {
-  const data = JSON.parse(msg.data);
-  if(data.offer && !localConnection) await receiveOffer(data.offer);
-  if(data.answer) await receiveAnswer(data.answer);
-  if(data.candidate) localConnection?.addIceCandidate(data.candidate);
+// === CONFIGURE FIREBASE ===
+// Replace this with your Firebase project config (free to create)
+const firebaseConfig = {
+  apiKey: "AIzaSyCSh6K8e_CAswGyYuIvgMVKZ3T8b5gGKFU",
+  authDomain: "hyphonchat.firebaseapp.com",
+  databaseURL: "https://hyphonchat-default-rtdb.firebaseio.com", // your link
+  projectId: "hyphonchat",
+  storageBucket: "hyphonchat.firebasestorage.app",
+  messagingSenderId: "172774813412",
+  appId: "1:172774813412:web:8d307b6a170bf270cfc6f1"
 };
 
-// Initialize WebRTC
-async function initConnection() {
-  localConnection = new RTCPeerConnection();
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-  dataChannel = localConnection.createDataChannel("chat");
-  dataChannel.onmessage = (e) => addLine(e.data, "friend");
+// Random username
+const usernames = ["Neo","Pixel","Glitch","Cipher","Echo","Nova","Vortex","Shadow","Blip","Spark",
+                   "Quantum","Frost","Byte","Laser","Pulse","Zen","Orbit","Drift","Flux","Arc"];
+const myName = usernames[Math.floor(Math.random()*usernames.length)];
 
-  localConnection.onicecandidate = e => {
-    if(e.candidate) signaling.send(JSON.stringify({candidate:e.candidate}));
-  };
+const chatDiv = document.getElementById("chat");
 
-  const offer = await localConnection.createOffer();
-  await localConnection.setLocalDescription(offer);
-  signaling.send(JSON.stringify({offer}));
-}
-
-async function receiveOffer(offer) {
-  localConnection = new RTCPeerConnection();
-  localConnection.ondatachannel = (e) => {
-    dataChannel = e.channel;
-    dataChannel.onmessage = (ev)=> addLine(ev.data,"friend");
-  };
-  localConnection.onicecandidate = e => {
-    if(e.candidate) signaling.send(JSON.stringify({candidate:e.candidate}));
-  };
-  await localConnection.setRemoteDescription(offer);
-  const answer = await localConnection.createAnswer();
-  await localConnection.setLocalDescription(answer);
-  signaling.send(JSON.stringify({answer}));
-}
-
-async function receiveAnswer(answer) {
-  await localConnection.setRemoteDescription(answer);
-}
+// Listen for new messages
+db.ref("messages").on("child_added", snap => {
+  const data = snap.val();
+  addLine(data.user + ": " + data.text, data.user===myName?"user":"friend");
+});
 
 function addLine(text, cls){
   const div = document.createElement("div");
   div.className = cls;
   div.textContent = text;
-  chat.appendChild(div);
-  chat.scrollTop = 99999;
+  chatDiv.appendChild(div);
+  chatDiv.scrollTop = 99999;
 }
 
 function send(){
   const msg = document.getElementById("msg").value;
   if(!msg.trim()) return;
-  const message = `${myName}: ${msg}`;
-  addLine(message, "user");
-  dataChannel?.send(message);
+  db.ref("messages").push({ user: myName, text: msg });
   document.getElementById("msg").value = "";
 }
-
-initConnection();
 </script>
 </body>
 </html>
