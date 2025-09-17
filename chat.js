@@ -9,7 +9,7 @@ export default async function handler(req, res) {
       {
         method: "POST",
         headers: {
-          "Authorization": "Bearer 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", // <- put your Hugging Face token here
+          "Authorization": "Bearer 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", // <-- replace with your Hugging Face token
           "Content-Type": "application/json"
         },
         body: JSON.stringify({ inputs: prompt })
