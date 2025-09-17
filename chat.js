@@ -1,17 +1,28 @@
 export default async function handler(req, res) {
-  const body = await req.json();
-  const prompt = body.prompt || "";
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const response = await fetch("https://api-inference.huggingface.co/models/gpt2", {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer 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",
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ inputs: prompt })
-  });
+  const { prompt } = await req.json();
 
-  const data = await response.json();
-  const text = (data?.[0]?.generated_text || JSON.stringify(data));
-  res.status(200).json({ reply: text });
+  try {
+    const response = await fetch(
+      "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill",
+      {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer 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", // <- put your Hugging Face token here
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ inputs: prompt })
+      }
+    );
+
+    const data = await response.json();
+    let reply = "No response";
+    if (data?.[0]?.generated_text) reply = data[0].generated_text;
+    else if (data?.error) reply = "AI ERROR: " + data.error;
+
+    res.status(200).json({ reply });
+  } catch (err) {
+    res.status(500).json({ reply: "AI ERROR: " + err.message });
+  }
 }
