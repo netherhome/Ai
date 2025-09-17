@@ -311,3 +311,74 @@ function saveAccountChanges(){
   const p=document.getElementById("changePassword").value.trim();
   if(n)myName=n;
   if(p)db.ref(`users/${myName}/password`).set(p);
+  closeAccountModal();
+}
+
+// --- FRIENDS ---
+function openAddFriendModal(){document.getElementById("addFriendInput").value="";document.getElementById("addFriendModal").style.display="flex";}
+function closeAddFriend(){document.getElementById("addFriendModal").style.display="none";}
+function submitAddFriend(){
+  const friend=document.getElementById("addFriendInput").value.trim();
+  if(!friend || friend===myName){alert("Invalid username");return;}
+  db.ref(`users/${friend}/requests/${myName}`).set(true).then(()=>{alert("Request sent!");closeAddFriend();});
+}
+
+function openFriendRequests(){
+  const container=document.getElementById("friendRequestsList");
+  container.innerHTML="";
+  db.ref(`users/${myName}/requests`).get().then(snap=>{
+    snap.forEach(s=>{
+      const user=s.key;
+      const div=document.createElement("div");
+      div.textContent=user;
+      const accept=document.createElement("button"); accept.textContent="Accept"; accept.onclick=()=>{acceptFriend(user);};
+      const reject=document.createElement("button"); reject.textContent="Reject"; reject.onclick=()=>{rejectFriend(user);};
+      div.appendChild(accept); div.appendChild(reject);
+      container.appendChild(div);
+    });
+    document.getElementById("friendRequestsModal").style.display="flex";
+  });
+}
+function closeFriendRequests(){document.getElementById("friendRequestsModal").style.display="none";}
+function acceptFriend(user){
+  db.ref(`users/${myName}/friends/${user}`).set(true);
+  db.ref(`users/${user}/friends/${myName}`).set(true);
+  db.ref(`users/${myName}/requests/${user}`).remove();
+  openFriendRequests();
+}
+function rejectFriend(user){
+  db.ref(`users/${myName}/requests/${user}`).remove();
+  openFriendRequests();
+}
+
+function openDMs(){
+  const container=document.getElementById("friendsList");
+  container.innerHTML="";
+  db.ref(`users/${myName}/friends`).get().then(snap=>{
+    snap.forEach(f=>{
+      const friend=f.key;
+      const btn=document.createElement("button");
+      btn.textContent=friend;
+      btn.onclick=()=>{openDMChat(friend);};
+      container.appendChild(btn);
+    });
+    document.getElementById("dmsModal").style.display="flex";
+  });
+}
+function closeDMs(){document.getElementById("dmsModal").style.display="none";}
+
+function openDMChat(friend){
+  const code=`DM_${[myName,friend].sort().join("_")}`;
+  db.ref(`chats/${code}`).get().then(snap=>{
+    if(!snap.exists()){
+      db.ref(`chats/${code}`).set({name:`DM: ${friend}`, members:{[myName]:true,[friend]:true}});
+    }
+    db.ref(`users/${myName}/myChats/${code}`).set(`DM: ${friend}`);
+    db.ref(`users/${friend}/myChats/${code}`).set(`DM: ${myName}`);
+    joinChat(code);
+    closeDMs();
+  });
+}
+</script>
+</body>
+</html>
