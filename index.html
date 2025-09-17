@@ -53,7 +53,7 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 
 <!-- Modals -->
 <div id="modal" class="modal"><div class="modalContent"><div id="modalText"></div><button onclick="closeModal()">X</button></div></div>
-<div id="accountModal" class="modal"><div class="modalContent"><div id="accountText"></div><input id="accountInput" placeholder="Enter name"/><button onclick="submitAccount()">Submit</button><button onclick="closeAccountModal()">X</button></div></div>
+<div id="accountModal" class="modal"><div class="modalContent"><div id="accountText"></div><input id="accountInput" placeholder="Enter name"/><input id="accountPassword" type="password" placeholder="Password (optional)"/><button onclick="submitAccount()">Submit</button><button onclick="closeAccountModal()">X</button></div></div>
 <div id="createChatModal" class="modal"><div class="modalContent"><div>Create Chat</div><input id="createChatName" placeholder="Chat name"/><button onclick="submitCreateChat()">Create</button><button onclick="closeCreateChat()">X</button></div></div>
 <div id="friendModal" class="modal"><div class="modalContent"><div>Add Friend</div><input id="friendInput" placeholder="Friend name"/><button onclick="submitAddFriend()">Send Request</button><button onclick="closeFriendModal()">X</button></div></div>
 <div id="requestsModal" class="modal"><div class="modalContent"><div>Friend Requests</div><div id="requestsList"></div><button onclick="closeRequestsModal()">X</button></div></div>
@@ -92,18 +92,26 @@ function setMode(mode){isDark=mode==="dark";document.body.style.background=isDar
 function toggleMode(){setMode(isDark?"light":"dark");}
 
 // --- Account ---
+const standardColors=["#1abc9c","#3498db","#e74c3c","#f1c40f","#9b59b6"];
+const secretColors=["linear-gradient(45deg,#ff6ec4,#7873f5)","linear-gradient(45deg,#00f260,#0575e6)","linear-gradient(45deg,#ff512f,#dd2476)"];
 function makeAccountUI(){showAccountModal("make");}
 function openAccountUI(){showAccountModal("open");}
 function submitAccount(){
   const name=document.getElementById("accountInput").value.trim();
+  const pass=document.getElementById("accountPassword").value || "";
   if(!name){alert("Enter name");return;}
+  const isCreating=document.getElementById("accountText").innerText==="Create Account";
   db.ref("users/"+name).get().then(snap=>{
-    if(document.getElementById("accountText").innerText==="Create Account"){
-      if(snap.exists()){alert("Name taken!"); return;}
-      myName=name; myColor="#1abc9c"; db.ref("users/"+name).set({color:myColor}); startChatUI(); closeAccountModal();
+    if(isCreating){
+      if(snap.exists()){alert("Name taken!");return;}
+      myName=name; myColor="#1abc9c";
+      db.ref("users/"+name).set({color:myColor,password:pass});
+      startChatUI(); closeAccountModal();
     } else{
-      if(!snap.exists()){alert("Name not found!"); return;}
-      myName=name; myColor=snap.val().color||"#1abc9c"; startChatUI(); closeAccountModal();
+      if(!snap.exists()){alert("Name not found!");return;}
+      if(snap.val().password && snap.val().password!==pass){alert("Incorrect password!");return;}
+      myName=name; myColor=snap.val().color||"#1abc9c";
+      startChatUI(); closeAccountModal();
     }
   });
 }
@@ -112,8 +120,6 @@ function submitAccount(){
 function startChatUI(){document.getElementById("startup").style.display="none";document.getElementById("chatUI").style.display="flex"; chatDiv.style.display="none";document.getElementById("msg").style.display="none";document.getElementById("sendBtn").style.display="none";}
 
 // --- Account Panel ---
-const standardColors=["#1abc9c","#3498db","#e74c3c","#f1c40f","#9b59b6"];
-const secretColors=["linear-gradient(45deg,#ff6ec4,#7873f5)","linear-gradient(45deg,#00f260,#0575e6)","linear-gradient(45deg,#ff512f,#dd2476)"];
 function showAccountPanel(){
   const modalContent=document.createElement("div");
   modalContent.className="modalContent";
@@ -129,19 +135,28 @@ function showAccountPanel(){
     modalContent.appendChild(btn);
   });
   if(myName==="Nether"){
-    const secretBtn=document.createElement("button"); secretBtn.textContent="Add Colour"; secretBtn.style.margin="5px"; secretBtn.onclick=()=>addSecretColorToUser(); modalContent.appendChild(secretBtn);
+    const secretBtn=document.createElement("button"); secretBtn.textContent="Add Colour"; secretBtn.style.margin="5px"; 
+    secretBtn.onclick=()=>addSecretColorToUser(); 
+    modalContent.appendChild(secretBtn);
   }
-  const saveBtn=document.createElement("button"); saveBtn.textContent="Save"; saveBtn.style.margin="5px"; saveBtn.onclick=()=>{
+  const saveBtn=document.createElement("button"); saveBtn.textContent="Save"; saveBtn.style.margin="5px"; 
+  saveBtn.onclick=()=>{
     const newName=document.getElementById("newUsername").value.trim();
     if(newName && newName!==myName){
       db.ref("users/"+myName).get().then(snap=>{
         if(snap.exists()){
-          db.ref("users/"+newName).set(snap.val()); db.ref("users/"+myName).remove(); myName=newName; showModalText("Username updated!");
+          db.ref("users/"+newName).set(snap.val()); 
+          db.ref("users/"+myName).remove(); 
+          myName=newName; 
+          showModalText("Username updated!");
         }
       });
-    } closeModal();
-  }; modalContent.appendChild(saveBtn);
-  const close=document.createElement("button"); close.textContent="X"; close.style.margin="5px"; close.onclick=()=>closeModal(); modalContent.appendChild(close);
+    } 
+    closeModal();
+  }; 
+  modalContent.appendChild(saveBtn);
+  const close=document.createElement("button"); close.textContent="X"; close.style.margin="5px"; close.onclick=()=>closeModal(); 
+  modalContent.appendChild(close);
   const modal=document.getElementById("modal"); modal.innerHTML=""; modal.appendChild(modalContent); modal.style.display="flex";
 }
 function addSecretColorToUser(){
