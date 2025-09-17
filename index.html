@@ -38,20 +38,73 @@ button{border:none;border-radius:6px;padding:6px 12px;cursor:pointer;margin:2px;
 <body>
 
 <script>
-// Define accUI() function here, along with all Firebase initialization
-function accUI(type){
-  // ... your existing accUI code ...
-}
-</script>
-
 <!-- Startup Screen -->
 <div id="startupScreen">
   <h1>Welcome to Hyphon Chat</h1>
   <div>
-    <button style="background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;font-weight:600;"
-      onclick="accUI('Create')">Sign Up for Free</button>
+    <button id="signupBtn" style="background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;font-weight:600;">Sign Up for Free</button>
   </div>
 </div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script>
+// Firebase init
+const fb={apiKey:"...",authDomain:"...",databaseURL:"...",projectId:"...",storageBucket:"...",messagingSenderId:"...",appId:"..."};
+firebase.initializeApp(fb);
+const db=firebase.database();
+
+// Global vars
+let me="";
+
+// Full accUI function must be defined here:
+function accUI(type){
+    const accModal=document.getElementById("accModal");
+    const accBox=document.getElementById("accBox");
+    const switchText = type==="Create" ?
+      `<button onclick="accUI('Open')" style="background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;margin-top:6px;">Already have an account? Log In</button>` :
+      `<button onclick="accUI('Create')" style="background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;margin-top:6px;">Don't have an account? Sign Up</button>`;
+    
+    accBox.innerHTML = `
+      <h3>${type} Account</h3>
+      <input id="accName" placeholder="Name">
+      <input id="accPass" type="password" placeholder="Password">
+      <button onclick="subAcc('${type}')" style="background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;font-weight:600;">Submit</button>
+      ${switchText}
+      <button onclick="accModal.style.display='none'" style="background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;font-weight:600;">X</button>
+    `;
+    accModal.style.display="flex";
+}
+
+// Attach click after DOM is ready
+document.addEventListener("DOMContentLoaded", ()=>{
+    document.getElementById("signupBtn").addEventListener("click",()=>{
+        accUI('Create'); 
+        document.getElementById("startupScreen").style.display="none";
+    });
+});
+
+// Account submit function (simplified)
+function subAcc(type){
+    const n = document.getElementById("accName").value.trim();
+    const p = document.getElementById("accPass").value;
+    if(!n) return alert("Enter name");
+    db.ref("users/"+n).get().then(s=>{
+        if(type=="Create"){
+            if(s.exists()) return alert("Name taken!");
+            me=n;
+            db.ref("users/"+n).set({color:"#1abc9c",password:p||null,pfp:"defaultURL"});
+            alert("Account created!"); 
+            document.getElementById("accModal").style.display="none";
+        } else {
+            if(!s.exists()) return alert("Name not found!");
+            if(s.val().password && s.val().password!==p) return alert("Incorrect password!");
+            me=n;
+            alert("Logged in!"); 
+            document.getElementById("accModal").style.display="none";
+        }
+    });
+}
 
 
 
