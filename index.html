@@ -190,4 +190,22 @@ function addMessageBubble(user,text,color,isMe){
 function sendMessage(){
   if(sending) return; sending=true;
   const txt=document.getElementById("msg").value.trim();
-  if(!txt || !currentChat){sending=false
+  if(!txt || !currentChat){sending=false; return;}
+  document.getElementById("msg").value="";
+  db.ref("messages/"+currentChat).push({user:myName,text:txt,color:myColor}).then(()=>{sending=false;});
+}
+
+function pruneMessages(){
+  db.ref("messages/"+currentChat).once("value").then(snap=>{
+    if(snap.numChildren()>maxMessages){
+      const keys=Object.keys(snap.val()).sort();
+      const del=keys.slice(0,snap.numChildren()-maxMessages);
+      del.forEach(k=>db.ref("messages/"+currentChat+"/"+k).remove());
+    }
+  });
+}
+
+setMode("dark");
+</script>
+</body>
+</html>
