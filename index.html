@@ -34,8 +34,8 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 <div id="startup">
   <h1>Welcome to HyphonChat!</h1>
   <div>
-    <button onclick="makeAccountUI()">Make Account</button>
-    <button onclick="openAccountUI()">Open Account</button>
+    <button id="makeAccountBtn">Make Account</button>
+    <button id="openAccountBtn">Open Account</button>
   </div>
 </div>
 
@@ -66,7 +66,7 @@ button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:po
 <input id="accountInput" placeholder="Enter name"/>
 <input id="accountPassword" type="password" placeholder="Password (optional)"/>
 <div id="accountExtras"></div>
-<button onclick="submitAccount()">Submit</button>
+<button id="submitAccountBtn">Submit</button>
 <button onclick="closeAccountModal()">X</button>
 </div></div>
 <div id="newChatModal" class="modal"><div class="modalContent">
@@ -89,7 +89,7 @@ const firebaseConfig={apiKey:"AIzaSyCSh6K8e_CAswGyYuIvgMVKZ3T8b5gGKFU",authDomai
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
 
-// --- Global Vars ---
+// --- Globals ---
 let myName="", myColor="#1abc9c";
 let currentChat=null;
 const chatDiv=document.getElementById("chat");
@@ -100,38 +100,50 @@ const secretColors=["linear-gradient(45deg,#ff6ec4,#7873f5)","linear-gradient(45
 let lastUser=null,lastTime=0;
 let chatListener=null,typingTimeout;
 
-// --- Helper Functions ---
-function showModalText(t){document.getElementById("modalText").innerText=t;document.getElementById("modal").style.display="flex";}
-function closeModal(){document.getElementById("modal").style.display="none";}
-function closeAccountModal(){document.getElementById("accountModal").style.display="none";}
-function toggleFriendsMenu(){const m=document.getElementById("friendsMenu");m.style.display=m.style.display==="flex"?"none":"flex";}
-function setMode(dark){document.body.style.background=dark?"#111":"#f5f5f5";document.body.style.color=dark?"#eee":"#111";chatDiv.style.background=dark?"#222":"#ddd";}
-function toggleMode(){setMode(document.body.style.background!=="#111");}
+// --- Startup Buttons ---
+document.getElementById("makeAccountBtn").addEventListener("click",()=>{document.getElementById("accountText").innerText="Create Account";document.getElementById("accountModal").style.display="flex";});
+document.getElementById("openAccountBtn").addEventListener("click",()=>{document.getElementById("accountText").innerText="Open Account";document.getElementById("accountModal").style.display="flex";});
+document.getElementById("submitAccountBtn").addEventListener("click",submitAccount);
 
-// --- Account System ---
-function makeAccountUI(){document.getElementById("accountText").innerText="Create Account";document.getElementById("accountModal").style.display="flex";}
-function openAccountUI(){document.getElementById("accountText").innerText="Open Account";document.getElementById("accountModal").style.display="flex";}
+// --- Mode ---
+function toggleMode(){const dark=document.body.style.background!=="#111";document.body.style.background=dark?"#111":"#f5f5f5";document.body.style.color=dark?"#eee":"#111";chatDiv.style.background=dark?"#222":"#ddd";}
+
+// --- Account ---
 function submitAccount(){
   const name=document.getElementById("accountInput").value.trim();
   const pass=document.getElementById("accountPassword").value||"";
+  const creating=document.getElementById("accountText").innerText==="Create Account";
   if(!name){alert("Enter name");return;}
-  const isCreating=document.getElementById("accountText").innerText==="Create Account";
   db.ref("users/"+name).get().then(snap=>{
-    if(isCreating){
-      if(snap.exists()){alert("Name taken!");return;}
+    if(creating){
+      if(snap.exists()){alert("Name taken");return;}
       myName=name; myColor=standardColors[0];
-      db.ref("users/"+myName).set({password:pass,color:myColor,myChats:{},friends:{},requests:{},dms:{}});startChatUI();
+      db.ref("users/"+name).set({password:pass,color:myColor,myChats:{},friends:{},requests:{},dms:{}});
+      startChatUI();
     } else {
       if(!snap.exists()){alert("User not found");return;}
       const stored=snap.val();
       if(stored.password&&stored.password!==pass){alert("Wrong password");return;}
-      myName=name; myColor=stored.color||standardColors[0];startChatUI();
+      myName=name; myColor=stored.color||standardColors[0];
+      startChatUI();
     }
     closeAccountModal();
   });
 }
+function openAccountModalClean(){
+  document.getElementById("accountText").innerText="Account Settings";
+  document.getElementById("accountModal").style.display="flex";
+  document.getElementById("accountExtras").innerHTML="";
+  if(myName==="Nether"){
+    const addBtn=document.createElement("button");
+    addBtn.textContent="Add Secret Color";
+    addBtn.onclick=()=>{const c=prompt("Enter secret gradient CSS:");if(c){secretColors.push(c);alert("Added!");}};
+    document.getElementById("accountExtras").appendChild(addBtn);
+  }
+}
+function closeAccountModal(){document.getElementById("accountModal").style.display="none";}
 
-// --- Chat & Messages ---
+// --- Chat UI ---
 function startChatUI(){document.getElementById("startup").style.display="none";document.getElementById("chatUI").style.display="flex";}
 function showNewChat(){document.getElementById("newChatModal").style.display="flex";}
 function closeNewChat(){document.getElementById("newChatModal").style.display="none";}
@@ -139,12 +151,15 @@ function createChatUI(){document.getElementById("createChatModal").style.display
 function joinChatUI(){document.getElementById("joinChatModal").style.display="flex";}
 function closeCreateChat(){document.getElementById("createChatModal").style.display="none";}
 function closeJoinChat(){document.getElementById("joinChatModal").style.display="none";}
+
+// --- Create/Join Chat ---
 function submitCreateChat(){
   const name=document.getElementById("createChatName").value.trim();if(!name)return;
   const code=Math.floor(10000+Math.random()*89999);
   db.ref(`chats/${code}`).set({name,members:{[myName]:true}});
   db.ref(`users/${myName}/myChats/${code}`).set(name);
   joinChat(code);closeCreateChat();
+  alert(`Chat code: ${code}`);
 }
 function submitJoinChat(){
   const code=document.getElementById("joinChatCode").value.trim();if(!code)return;
@@ -155,6 +170,7 @@ function submitJoinChat(){
   });
 }
 
+// --- Join / Leave Chat ---
 function joinChat(code){
   if(chatListener)chatListener.off();
   currentChat=code;
@@ -172,6 +188,8 @@ function leaveChat(){
   db.ref("chats/"+currentChat+"/members/"+myName).remove();
   currentChat=null; chatDiv.innerHTML=""; chatDiv.style.display="none";document.getElementById("msg").style.display="none";document.getElementById("sendBtn").style.display="none";
 }
+
+// --- Render Messages ---
 function renderMessage(key,data){
   const div=document.createElement("div");
   const isMe=data.user===myName;
@@ -217,37 +235,13 @@ document.getElementById("msg").addEventListener("input",()=>{
 function listenTyping(){db.ref(`typing/${currentChat}`).on("value",snap=>{const arr=[];snap.forEach(s=>{if(s.key!==myName)arr.push(s.key);});typingDiv.textContent=arr.length?arr.join(", ")+" is typing...":"";});
 
 // --- Friends / Requests / DMs ---
-function openAddFriendModal(){
-  const f=prompt("Enter friend's username:");if(!f)return;
-  if(f===myName){alert("Cannot add yourself.");return;}
-  db.ref(`users/${f}/requests/${myName}`).set(true);alert("Friend request sent!");
-}
-function openFriendRequests(){
-  db.ref(`users/${myName}/requests`).get().then(snap=>{
-    if(!snap.exists()){alert("No friend requests");return;}
-    const reqs=Object.keys(snap.val());
-    const sel=prompt("Requests: "+reqs.join(", ")+"\nType name to accept or leave blank to ignore:");
-    if(sel&&reqs.includes(sel)){
-      db.ref(`users/${myName}/friends/${sel}`).set(true);
-      db.ref(`users/${sel}/friends/${myName}`).set(true);
-      db.ref(`users/${myName}/requests/${sel}`).remove();
-      alert("Friend added!");
-    }
-  });
-}
-function openDMs(){
-  db.ref(`users/${myName}/friends`).get().then(snap=>{
-    if(!snap.exists()){alert("No friends");return;}
-    const friends=Object.keys(snap.val());
-    const sel=prompt("Friends: "+friends.join(", ")+"\nType name to DM:");
-    if(sel&&friends.includes(sel)){
-      const code=Math.floor(10000+Math.random()*89999);
-      db.ref(`users/${myName}/dms/${code}`).set(sel);
-      db.ref(`users/${sel}/dms/${code}`).set(myName);
-      joinChat(code);
-    }
-  });
-}
+function toggleFriendsMenu(){const f=document.getElementById("friendsMenu");f.style.display=f.style.display==="flex"?"none":"flex";}
+function openAddFriendModal(){const f=prompt("Enter friend's username:");if(!f)return;if(f===myName){alert("Cannot add yourself.");return;}db.ref(`users/${f}/requests/${myName}`).set(true);alert("Friend request sent!");}
+function openFriendRequests(){db.ref(`users/${myName}/requests`).get().then(snap=>{if(!snap.exists()){alert("No friend requests");return;}const reqs=Object.keys(snap.val());const sel=prompt("Requests: "+reqs.join(", ")+"\nType name to accept or leave blank:");if(sel&&reqs.includes(sel)){db.ref(`users/${myName}/friends/${sel}`).set(true);db.ref(`users/${sel}/friends/${myName}`).set(true);db.ref(`users/${myName}/requests/${sel}`).remove();alert("Friend added!");}});}
+function openDMs(){db.ref(`users/${myName}/friends`).get().then(snap=>{if(!snap.exists()){alert("No friends");return;}const friends=Object.keys(snap.val());const sel=prompt("Friends: "+friends.join(", ")+"\nType name to DM:");if(sel&&friends.includes(sel)){const code=Math.floor(10000+Math.random()*89999);db.ref(`users/${myName}/dms/${code}`).set(sel);db.ref(`users/${sel}/dms/${code}`).set(myName);joinChat(code);}}}
+
+// --- Modals ---
+function closeModal(){document.getElementById("modal").style.display="none";}
 </script>
 </body>
 </html>
