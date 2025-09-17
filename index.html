@@ -11,7 +11,7 @@ header button:hover{filter:brightness(1.1);}
 #chatContainer textarea{border:none;border-radius:8px;padding:10px;margin-top:8px;resize:none;background:linear-gradient(135deg,#1abc9c,#3498db);color:#fff;font-weight:bold;}
 #chatContainer button#sendBtn{background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;font-weight:600;}
 button{border:none;border-radius:6px;padding:6px 12px;cursor:pointer;margin:2px;}
-.bub{max-width:65%;padding:10px 14px;border-radius:16px;word-wrap:break-word;box-shadow:0 2px 5px rgba(0,0,0,0.4);}
+.bub{max-width:90%;padding:10px 14px;border-radius:16px;word-wrap:break-word;box-shadow:0 2px 5px rgba(0,0,0,0.4);}
 .me{align-self:flex-end;}
 .them{align-self:flex-start;}
 .name{font-size:12px;font-weight:600;margin:0 0 2px 0;color:#ccc;}
@@ -21,25 +21,25 @@ button{border:none;border-radius:6px;padding:6px 12px;cursor:pointer;margin:2px;
 .msgRow.me{flex-direction:row-reverse;}
 .join{font-style:italic;color:#aaa;font-size:12px;text-align:center;margin:4px 0;}
 .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);align-items:center;justify-content:center;z-index:50;}
-.modalContent {
-  background: linear-gradient(135deg,#1abc9c,#3498db); /* Blue gradient */
-  color: #fff;
-  padding: 18px;
-  border-radius: 12px;
-  min-width: 280px;
-  max-height: 80%;
-  overflow: auto;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.7);
-}
-
-
+.modalContent{background:linear-gradient(135deg,#1abc9c,#3498db);color:#fff;padding:18px;border-radius:12px;min-width:280px;max-height:80%;overflow:auto;box-shadow:0 4px 12px rgba(0,0,0,0.7);}
 .modalContent h3{background:linear-gradient(135deg,#1abc9c,#3498db);padding:8px;border-radius:8px;margin-top:0;margin-bottom:8px;text-align:center;}
 .modalContent input{padding:8px;margin:6px 0;border-radius:6px;border:none;width:90%;}
 .modalContent button{background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;font-weight:600;margin:4px;}
 .friendItem{display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;}
 .friendItem:hover{background:rgba(255,255,255,0.05);border-radius:6px;}
+#startupScreen{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#1abc9c,#3498db);color:#fff;z-index:1000;}
+#startupScreen h1{font-size:2.5em;margin-bottom:20px;}
 </style></head>
 <body>
+
+<!-- Startup Screen -->
+<div id="startupScreen">
+  <h1>Welcome to Hyphon Chat</h1>
+  <div>
+    <button onclick="makeAcc()">Sign Up</button>
+    <button onclick="openAcc()">Log In</button>
+  </div>
+</div>
 
 <header>
 <div>
@@ -96,24 +96,69 @@ else{if(!s.exists())return alert("No user");if(s.val().password&&s.val().passwor
 });
 }
 
-function start(){document.getElementById("chatUI").style.display="flex";listenTyping();}
-function sendMsg(){if(!chat)return;const t=msg.value.trim();if(!t)return;msg.value="";db.ref("messages/"+chat).push({u:me,txt:t,c:col,p:pic,ts:Date.now()});}
-function joinChat(c){chat=c;chatDiv.innerHTML="";if(listener)db.ref("messages/"+c).off("child_added",listener);listener=db.ref("messages/"+c).on("child_added",s=>{addBubble(s.val());});}
-function addBubble(d){let row=document.createElement("div");row.className="msgRow"+(d.u===me?" me":"");if(!d.system){let im=document.createElement("img");im.className="pfp";im.src=d.p||pic;let box=document.createElement("div");box.style.display="flex";box.style.flexDirection="column";if(d.u!==lastUser||(d.ts-lastTime)>60000){let nm=document.createElement("div");nm.className="name";nm.textContent=d.u;box.appendChild(nm);}lastUser=d.u;lastTime=d.ts;let bub=document.createElement("div");bub.className="bub "+(d.u===me?"me":"them");bub.style.background=d.c;bub.textContent=d.txt;let tm=document.createElement("span");tm.className="time";tm.textContent=new Date(d.ts).toLocaleTimeString();bub.appendChild(tm);box.appendChild(bub);row.appendChild(im);row.appendChild(box);}else{let sys=document.createElement("div");sys.className="join";sys.textContent=d.txt;row.appendChild(sys);}chatDiv.appendChild(row);chatDiv.scrollTop=chatDiv.scrollHeight;}
-msg.addEventListener("input",()=>{if(!chat)return;db.ref(`typing/${chat}/${me}`).set(true);clearTimeout(typingTimeout);typingTimeout=setTimeout(()=>{db.ref(`typing/${chat}/${me}`).remove();},1500);});
-function listenTyping(){db.ref(`typing/${chat}`).on("value",snap=>{let users=[];snap.forEach(s=>{if(s.key!==me)users.push(s.key);});typingDiv.textContent=users.length?users.join(", ")+" is typing...":"";});}
+function start(){
+  document.getElementById("startupScreen").style.display = "none";
+  document.getElementById("chatUI").style.display="flex";
+  listenTyping();
+}
+function sendMsg(){if(!chat)return;const t=msg.value.trim();if(!t)return;msg.value="";db.ref("messages/"+chat).push({u:me,txt:t,c
+:col,pic:pic,timestamp:Date.now()});}
+
+function joinChat(code){
+  chat=code; chatDiv.innerHTML="";
+  document.getElementById("msg").style.display="block";
+  document.getElementById("sendBtn").style.display="inline-block";
+  db.ref("chats/"+code+"/members/"+me).get().then(snap=>{
+    if(!snap.exists()) db.ref("messages/"+code).push({txt:`[${code}] ${me} joined`,system:true,timestamp:Date.now()});
+    db.ref("chats/"+code+"/members/"+me).set(true);
+  });
+  listenMsgs();
+}
+
+function listenMsgs(){
+  if(listener) db.ref("messages/"+chat).off("child_added",listener);
+  listener=db.ref("messages/"+chat).on("child_added",snap=>{
+    const d=snap.val();
+    const row=document.createElement("div");row.className="msgRow "+(d.u==me?"me":"them");
+    if(d.system){const j=document.createElement("div");j.className="join";j.textContent=d.txt;row.appendChild(j);}
+    else{
+      const img=document.createElement("img");img.className="pfp";img.src=d.pic||pic;
+      const msgdiv=document.createElement("div");msgdiv.className="bub";msgdiv.style.background=d.c?.startsWith("linear-gradient")?d.c:(d.c||"#1abc9c");
+      const ndiv=document.createElement("div");ndiv.className="name";ndiv.textContent=d.u;msgdiv.appendChild(ndiv);
+      const txt=document.createElement("div");txt.textContent=d.txt;txt.style.fontWeight="bold";msgdiv.appendChild(txt);
+      const tdiv=document.createElement("div");tdiv.className="time";tdiv.textContent=new Date(d.timestamp).toLocaleTimeString();msgdiv.appendChild(tdiv);
+      row.appendChild(img); row.appendChild(msgdiv);
+    }
+    chatDiv.appendChild(row);
+    chatDiv.scrollTop=chatDiv.scrollHeight;
+  });
+}
+
+function leaveChat(){if(!chat)return;if(confirm("Leave this chat?")){db.ref("chats/"+chat+"/members/"+me).remove();chat=null;chatDiv.innerHTML="";document.getElementById("msg").style.display="none";document.getElementById("sendBtn").style.display="none";}}
+
+function listenTyping(){if(!chat)return;db.ref("typing/"+chat).on("value",snap=>{const arr=[];snap.forEach(s=>{if(s.key!==me) arr.push(s.key);});typingDiv.textContent=arr.length?arr.join(", ")+ " is typing...":"";});}
+msg.addEventListener("input",()=>{if(!chat)return;db.ref("typing/"+chat+"/"+me).set(true);clearTimeout(typingTimeout);typingTimeout=setTimeout(()=>{db.ref("typing/"+chat+"/"+me).remove();},1500);});
+
+function openAccSet(){
+  let html=`<h3>Account Settings</h3><div>Username: ${me}</div><input id="chgName" placeholder="Change username"><input id="chgPass" type="password" placeholder="Password"><div>Pick Color:</div>`;
+  ["#1abc9c","#3498db","#e74c3c","#f1c40f","#9b59b6"].forEach(c=>html+=`<button onclick="setCol('${c}')" style="background:${c};color:#fff;margin:2px;"> </button>`);
+  if(me==="Nether") ["linear-gradient(45deg,#ff6ec4,#7873f5)","linear-gradient(45deg,#00f260,#0575e6)"].forEach(c=>html+=`<button onclick="setCol('${c}')" style="background:${c};color:#fff;margin:2px;"> </button>`);
+  html+=`<div style="margin-top:10px;"><button onclick="addFriend()">Add Friend</button><button onclick="friendReqs()">Friend Requests</button><button onclick="openDMs()">DMs</button><button onclick="saveAcc()">Save</button><button onclick="cls('accModal')">X</button></div>`;
+  accBox.innerHTML=html; accModal.style.display="flex";
+}
+
+function setCol(c){if(c.includes("gradient")&&me!=="Nether")return alert("Not allowed");col=c;db.ref("users/"+me+"/color").set(c);}
+function saveAcc(){const n=chgName.value.trim(),p=chgPass.value.trim();if(n)me=n;if(p)db.ref("users/"+me+"/password").set(p);cls('accModal');}
+function addFriend(){alert("Add Friend placeholder");}
+function friendReqs(){alert("Friend Requests placeholder");}
+function openDMs(){dmsList.innerHTML="";dmsModal.style.display="flex";}
+
+function openChats(){chatList.innerHTML="";dmsList.innerHTML="";chatsModal.style.display="flex";}
 function newChat(){newModal.style.display="flex";}
 function mkChat(){cls('newModal');mkModal.style.display="flex";}
 function jnChat(){cls('newModal');jnModal.style.display="flex";}
-function subMk(){const n=mkName.value.trim();if(!n)return;const c=Math.floor(10000+Math.random()*89999);db.ref("chats/"+c).set({name:n,members:{[me]:true}});db.ref("users/"+me+"/myChats/"+c).set(n);db.ref("messages/"+c).push({system:true,txt:`[${c}] ${me} joined`,ts:Date.now()});joinChat(c);cls('mkModal');}
-function subJn(){const c=jnCode.value.trim();db.ref("chats/"+c).get().then(snap=>{if(!snap.exists())return alert("No chat");db.ref("users/"+me+"/myChats/"+c).set(snap.val().name);joinChat(c);cls('jnModal');});}
-function leaveChat(){if(!chat)return;if(confirm("Leave chat?")){db.ref("users/"+me+"/myChats/"+chat).remove();chat=null;chatDiv.innerHTML="";}}
-function openChats(){chatList.innerHTML="";db.ref("users/"+me+"/myChats").once("value").then(snap=>{snap.forEach(c=>{let b=document.createElement("button");b.textContent=c.val()+" ("+c.key+")";b.onclick=()=>{joinChat(c.key);cls('chatsModal');};chatList.appendChild(b);});});chatsModal.style.display="flex";}
-function openAccSet(){db.ref("users/"+me).once("value").then(snap=>{let u=snap.val();document.getElementById("accBox").innerHTML=`<h3>Account</h3><div>Username: ${me}</div><input id="chgName" placeholder="Change username"><input id="chgPass" type="password" placeholder="Password"><div>Pick Color:</div>${["#1abc9c","#3498db","#e74c3c","#f1c40f","#9b59b6"].map(c=>`<button onclick="setCol('${c}')">${c}</button>`).join('')}${me==="Nether"?["linear-gradient(45deg,#ff6ec4,#7873f5)","linear-gradient(45deg,#00f260,#0575e6)"].map(c=>`<button onclick="setCol('${c}')">${c}</button>`).join(''):""}<div style="margin-top:10px;"><button onclick="addFriend()">Add Friend</button><button onclick="friendReqs()">Friend Requests</button><button onclick="cls('accModal')">X</button></div>`;accModal.style.display="flex";});}
-function setCol(c){if(c.includes("gradient")&&me!=="Nether")return alert("Not allowed");col=c;db.ref("users/"+me+"/color").set(c);}
-function addFriend(){alert("Add Friend placeholder");}
-function friendReqs(){alert("Friend Requests placeholder");}
-function openDMs(){dmsList.innerHTML="";alert("DMs placeholder");dmsModal.style.display="flex";}
+function subMk(){const n=mkName.value.trim();if(!n)return;const code=Math.floor(10000+Math.random()*89999);db.ref("chats/"+code).set({name:n,members:{[me]:true}});db.ref("users/"+me+"/myChats/"+code).set(n);joinChat(code);cls('mkModal');}
+function subJn(){const c=jnCode.value.trim();if(!c)return;db.ref("chats/"+c).get().then(s=>{if(!s.exists())return alert("Chat not found");db.ref("users/"+me+"/myChats/"+c).set(s.val().name);joinChat(c);cls('jnModal');});}
 </script>
 </body></html>
 
