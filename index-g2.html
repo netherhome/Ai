@@ -1,955 +1,183 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Hyphon Gartic — Online</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
+  <title>GarticTwo Online</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Firebase compat libraries -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-
-  <style>
-    body { background: linear-gradient(180deg,#0f172a,#071127); min-height:100vh; }
-    .card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.04); backdrop-filter: blur(6px); }
-    .tool-btn.active { box-shadow: 0 0 0 3px rgba(99,102,241,0.14); transform: translateY(-1px);}
-    .canvas-wrap { background:linear-gradient(180deg,#f8fafc,#fff); border-radius:10px; padding:8px; display:inline-block; }
-    /* small mobile tweaks */
-    @media (max-width:768px){ .layout-col { flex-direction:column; } .canvas-large { width:100%; height:280px; } }
-  </style>
 </head>
-<body class="text-white font-sans antialiased">
+<body class="bg-gray-900 text-white font-sans flex flex-col items-center min-h-screen">
 
-  <header class="w-full py-4 px-6 flex items-center justify-between">
-    <div class="flex items-center gap-4">
-      <div class="text-2xl font-bold text-indigo-400">🎨 Hyphon Gartic (Online)</div>
-      <div class="text-sm text-slate-300">Realtime via Firebase</div>
-    </div>
-    <div class="text-sm text-slate-300">Room-based • Single-file</div>
+  <!-- Header -->
+  <header class="w-full bg-gray-800 py-4 shadow-lg flex justify-between px-6 items-center">
+    <h1 class="text-2xl font-bold text-indigo-400">GarticTwo Online</h1>
+    <nav class="space-x-4">
+      <button id="newGameBtn" class="px-4 py-2 bg-indigo-500 rounded-lg hover:bg-indigo-600">New Game</button>
+      <button id="joinGameBtn" class="px-4 py-2 bg-green-500 rounded-lg hover:bg-green-600">Join Game</button>
+    </nav>
   </header>
 
-  <main class="max-w-6xl mx-auto p-6">
-    <!-- LOBBY -->
-    <section id="lobby" class="card p-6 rounded-xl shadow-lg">
-      <div class="flex gap-6 layout-col">
-        <div style="flex:1">
-          <h2 class="text-xl font-semibold mb-3">Create / Join Room</h2>
-          <div class="flex gap-2 mb-3">
-            <input id="inputName" placeholder="Your display name" class="px-3 py-2 rounded w-64 text-black" />
-            <input id="inputRoomCode" placeholder="Room code (optional)" class="px-3 py-2 rounded w-44 text-black" />
-          </div>
-
-          <div class="flex gap-2 mb-4">
-            <select id="modeSelect" class="px-3 py-2 rounded text-black">
-              <option value="regular">Regular (Text → Draw — 2 turns)</option>
-              <option value="icebreaker">Icebreaker (Text, then multiple draw rounds)</option>
-              <option value="masterpiece">Masterpiece (Long Draw — 1 long turn)</option>
-              <option value="story">Story (Text chain — rounds depend on players)</option>
-            </select>
-            <input id="customRounds" type="number" min="1" max="20" placeholder="Custom rounds (opt)" class="px-3 py-2 rounded w-40 text-black"/>
-          </div>
-
-          <div class="flex gap-2">
-            <button id="btnCreate" class="px-4 py-2 rounded bg-indigo-500 hover:bg-indigo-600">Create Room</button>
-            <button id="btnJoin" class="px-4 py-2 rounded bg-green-500 hover:bg-green-600">Join Room</button>
-            <button id="btnQuick" class="px-4 py-2 rounded bg-slate-600 hover:bg-slate-700">Quick Join (random)</button>
-          </div>
-
-          <div class="mt-4 text-sm text-slate-300">
-            <strong>Mode notes:</strong>
-            <ul class="list-disc ml-5">
-              <li><em>Regular</em>: each player adds a text, then a draw: 2 rounds total.</li>
-              <li><em>Icebreaker</em>: every player writes a prompt; subsequent rounds each player draws assigned prompts — rounds = #players by default.</li>
-              <li><em>Masterpiece</em>: one collaborative/long draw round (each player submits a drawing once).</li>
-              <li><em>Story</em>: text chain — rounds = #players by default (each player writes based on previous).</li>
-            </ul>
-          </div>
-        </div>
-
-        <div style="width:340px">
-          <div class="card p-4 rounded-lg">
-            <h3 class="font-semibold mb-2">Active Room</h3>
-            <div class="text-sm text-slate-300 mb-3">Join or create to see players.</div>
-            <div id="roomPanel" class="mb-3 hidden">
-              <div class="mb-2">Room: <span id="roomCodeDisplay" class="font-bold"></span> <span id="hostBadge" class="ml-2 px-2 py-1 rounded text-xs bg-indigo-600">HOST</span></div>
-              <div class="mb-2">Mode: <span id="modeDisplay"></span></div>
-              <div class="mb-2">Rounds: <span id="roundsDisplay"></span></div>
-              <div class="mb-2">Players (<span id="playersCount">0</span>):</div>
-              <ul id="playersList" class="text-sm space-y-1"></ul>
-              <div class="mt-3 flex gap-2">
-                <button id="btnReady" class="px-3 py-1 rounded bg-yellow-500">Ready</button>
-                <button id="btnStart" class="px-3 py-1 rounded bg-indigo-500 hidden">Start Game</button>
-                <button id="btnLeave" class="px-3 py-1 rounded bg-red-600">Leave</button>
-              </div>
-            </div>
-            <div id="noRoomMessage" class="text-sm text-slate-400">Not in a room yet.</div>
-          </div>
-
-          <div class="card p-4 rounded-lg mt-4">
-            <h3 class="font-semibold">Quick Tips</h3>
-            <ul class="text-sm text-slate-300 list-disc ml-5">
-              <li>Open the same room in multiple browser windows to test with multiple players.</li>
-              <li>All drawings and texts are saved to Firebase for recap.</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- GAME AREA -->
-    <section id="game" class="card p-6 rounded-xl shadow-lg mt-6 hidden">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <div class="text-lg font-semibold" id="gameStatus">Waiting...</div>
-          <div class="text-sm text-slate-300" id="turnInfo">Turn info</div>
-        </div>
-        <div class="text-sm text-slate-300">You: <span id="meName"></span></div>
-      </div>
-
-      <div class="flex gap-6 layout-col">
-        <!-- Canvas / Drawing -->
-        <div style="flex:1" class="card p-4 rounded-lg">
-          <div class="flex items-center gap-3 mb-3">
-            <div class="canvas-wrap">
-              <canvas id="canvas" class="canvas-large" width="820" height="520" style="background:white; border-radius:8px; display:block;"></canvas>
-            </div>
-          </div>
-
-          <div class="flex gap-2 items-center">
-            <div class="flex items-center gap-1">
-              <button class="tool-btn px-3 py-1 rounded bg-slate-800" data-tool="pen" id="toolSmall">Small</button>
-              <button class="tool-btn px-3 py-1 rounded bg-slate-800" data-tool="pen" id="toolBig">Big</button>
-              <button class="tool-btn px-3 py-1 rounded bg-slate-800" data-tool="eraser" id="toolEraser">Eraser</button>
-            </div>
-
-            <label class="flex items-center gap-2">
-              Color
-              <input type="color" id="colorPicker" value="#000000">
-            </label>
-
-            <div class="ml-3 text-sm text-slate-300">Brush size: <span id="brushSizeLabel">4</span></div>
-
-            <div class="ml-auto flex gap-2">
-              <button id="btnUndo" class="px-3 py-1 rounded bg-slate-700">Undo</button>
-              <button id="btnClear" class="px-3 py-1 rounded bg-red-600">Clear</button>
-            </div>
-          </div>
-
-          <div id="drawControls" class="mt-3 text-sm text-slate-300 hidden">
-            <div>Draw tools active. Use mouse/touch to draw. Your strokes are synced live.</div>
-          </div>
-        </div>
-
-        <!-- Right Panel: Chat / Prompt / Submissions -->
-        <div style="width:380px" class="flex flex-col gap-4">
-          <div class="card p-4 rounded-lg">
-            <h3 class="font-semibold">Prompt / Chat</h3>
-            <div id="promptArea" class="mt-2">
-              <div id="promptText" class="mb-2 text-slate-300"></div>
-              <input id="textInput" placeholder="Write your prompt / text here..." class="w-full px-3 py-2 rounded text-black"/>
-              <div class="flex gap-2 mt-2">
-                <button id="btnSubmitText" class="px-3 py-1 rounded bg-indigo-500">Submit Text</button>
-                <button id="btnSubmitDraw" class="px-3 py-1 rounded bg-green-500">Submit Drawing</button>
-                <button id="btnSkip" class="px-3 py-1 rounded bg-slate-600">Skip</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="card p-4 rounded-lg flex-1 overflow-auto">
-            <h3 class="font-semibold">Players & Status</h3>
-            <ul id="playersStatus" class="mt-2 text-sm space-y-2"></ul>
-          </div>
-
-          <div class="card p-3 rounded-lg">
-            <div class="flex justify-between">
-              <div class="text-sm text-slate-300">Game Controls</div>
-              <div>
-                <button id="btnNextTurn" class="px-3 py-1 rounded bg-indigo-600 hidden">Advance</button>
-                <button id="btnEndGame" class="px-3 py-1 rounded bg-red-600 hidden">End Game</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Replay / Recap area -->
-      <div id="recapArea" class="mt-6 hidden card p-4 rounded-lg">
-        <h3 class="font-semibold mb-3">End-of-game Recap</h3>
-        <div id="recapList" class="space-y-4"></div>
-      </div>
-    </section>
+  <!-- Lobby -->
+  <main id="lobby" class="flex flex-col items-center mt-10 w-full max-w-3xl">
+    <h2 class="text-xl mb-4">Lobby</h2>
+    <input id="nickname" placeholder="Enter your name" class="px-4 py-2 rounded-lg text-black mb-3 w-full"/>
+    <input id="roomCode" placeholder="Room Code" class="px-4 py-2 rounded-lg text-black mb-3 w-full"/>
+    <button id="createRoom" class="px-6 py-2 bg-indigo-500 rounded-lg hover:bg-indigo-600 mb-3">Create Room</button>
+    <button id="joinRoom" class="px-6 py-2 bg-green-500 rounded-lg hover:bg-green-600">Join Room</button>
+    <ul id="playersList" class="mt-6 space-y-2"></ul>
   </main>
 
+  <!-- Game Area -->
+  <section id="gameArea" class="hidden w-full max-w-6xl mt-10 flex flex-col">
+    <h2 class="text-xl mb-4 text-center">Game</h2>
+    <div class="flex flex-col md:flex-row gap-6">
+      <!-- Drawing Canvas -->
+      <div class="bg-gray-800 p-4 rounded-xl shadow-xl flex-1">
+        <canvas id="drawingCanvas" width="600" height="400" class="border-2 border-gray-700 rounded"></canvas>
+        <div class="flex mt-2 gap-2">
+          <button id="toolSmall" class="px-2 py-1 bg-gray-700 rounded">✏️ Small</button>
+          <button id="toolBig" class="px-2 py-1 bg-gray-700 rounded">🖌️ Big</button>
+          <button id="toolEraser" class="px-2 py-1 bg-gray-700 rounded">🩹 Eraser</button>
+          <input type="color" id="colorPicker" class="w-10 h-10 rounded border"/>
+          <button id="clearCanvas" class="px-3 py-1 bg-red-500 rounded hover:bg-red-600">Clear</button>
+        </div>
+      </div>
+
+      <!-- Chat -->
+      <div class="flex-1 flex flex-col bg-gray-800 p-4 rounded-xl shadow-xl">
+        <div class="flex-1 overflow-y-auto mb-3" id="chatBox"></div>
+        <input id="chatInput" placeholder="Type message..." class="px-3 py-2 text-black rounded w-full"/>
+      </div>
+    </div>
+  </section>
+
   <script>
-  /******************************
-   * Firebase config (you gave)
-   ******************************/
-  const firebaseConfig = {
-    apiKey: "AIzaSyBnxa5QbhfrD_8LTrZbrmjI5wVRKHSXGLg",
-    authDomain: "gartictwo.firebaseapp.com",
-    databaseURL: "https://gartictwo-default-rtdb.firebaseio.com",
-    projectId: "gartictwo",
-    storageBucket: "gartictwo.firebasestorage.app",
-    messagingSenderId: "602694382683",
-    appId: "1:602694382683:web:1dc11cb6b715944ba0fb7e"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-
-  /******************************
-   * Basic state
-   ******************************/
-  let myName = "";
-  let myId = "p_" + Math.random().toString(36).slice(2,9);
-  let roomCode = null;
-  let isHost = false;
-  let mode = "regular";
-  let rounds = 2;
-  let playersOrder = []; // array of player IDs (names used as keys)
-  let currentRound = 0;
-  let currentPhaseType = ""; // 'text' or 'draw'
-  let submissionsCache = {}; // local cache of strokes to allow undo
-  let strokeUndoStack = [];
-  let strokesRenderedForPlayers = {}; // avoid re-render duplicates
-
-  /******************************
-   * Helpers: DOM refs
-   ******************************/
-  const lobby = document.getElementById("lobby");
-  const game = document.getElementById("game");
-  const roomPanel = document.getElementById("roomPanel");
-  const noRoomMessage = document.getElementById("noRoomMessage");
-  const roomCodeDisplay = document.getElementById("roomCodeDisplay");
-  const modeDisplay = document.getElementById("modeDisplay");
-  const roundsDisplay = document.getElementById("roundsDisplay");
-  const playersListEl = document.getElementById("playersList");
-  const playersCount = document.getElementById("playersCount");
-  const playersStatus = document.getElementById("playersStatus");
-  const meNameEl = document.getElementById("meName");
-  const btnStart = document.getElementById("btnStart");
-  const btnReady = document.getElementById("btnReady");
-  const btnNextTurn = document.getElementById("btnNextTurn");
-  const btnEndGame = document.getElementById("btnEndGame");
-  const btnSubmitText = document.getElementById("btnSubmitText");
-  const btnSubmitDraw = document.getElementById("btnSubmitDraw");
-  const btnSkip = document.getElementById("btnSkip");
-  const promptText = document.getElementById("promptText");
-  const textInput = document.getElementById("textInput");
-  const drawControls = document.getElementById("drawControls");
-
-  // lobby inputs
-  const inputName = document.getElementById("inputName");
-  const inputRoomCode = document.getElementById("inputRoomCode");
-  const btnCreate = document.getElementById("btnCreate");
-  const btnJoin = document.getElementById("btnJoin");
-  const btnQuick = document.getElementById("btnQuick");
-  const modeSelect = document.getElementById("modeSelect");
-  const customRounds = document.getElementById("customRounds");
-
-  // canvas refs
-  const canvas = document.getElementById("canvas");
-  const ctx = canvas.getContext("2d");
-  const colorPicker = document.getElementById("colorPicker");
-  const toolSmall = document.getElementById("toolSmall");
-  const toolBig = document.getElementById("toolBig");
-  const toolEraser = document.getElementById("toolEraser");
-  const btnUndo = document.getElementById("btnUndo");
-  const btnClear = document.getElementById("btnClear");
-  const brushSizeLabel = document.getElementById("brushSizeLabel");
-
-  // recap
-  const recapArea = document.getElementById("recapArea");
-  const recapList = document.getElementById("recapList");
-
-  /******************************
-   * Room management & listeners
-   ******************************/
-  function makeRoomCode() {
-    return Math.random().toString(36).substring(2,7).toUpperCase();
-  }
-
-  btnCreate.onclick = async () => {
-    if (!inputName.value.trim()) return alert("Choose a display name.");
-    myName = inputName.value.trim();
-    myId = myName + "_" + Math.random().toString(36).slice(2,6);
-    mode = modeSelect.value;
-    let code = makeRoomCode();
-    roomCode = code;
-    isHost = true;
-    // rounds default logic
-    let playerCountGuess = 2;
-    let defaultRounds = computeRoundsForMode(mode, playerCountGuess);
-    let setRounds = customRounds.value ? Math.max(1, Number(customRounds.value)) : defaultRounds;
-    await db.ref("rooms/" + roomCode).set({
-      host: myId,
-      mode: mode,
-      rounds: setRounds,
-      createdAt: Date.now()
-    });
-    await db.ref(`rooms/${roomCode}/players/${myId}`).set({ name: myName, ready: false });
-    enterRoomUI();
-  };
-
-  btnQuick.onclick = () => {
-    inputName.value = inputName.value || "Player" + Math.floor(Math.random()*900+100);
-    btnCreate.click();
-  }
-
-  btnJoin.onclick = async () => {
-    if (!inputName.value.trim()) return alert("Choose a display name.");
-    if (!inputRoomCode.value.trim()) return alert("Enter a room code.");
-    myName = inputName.value.trim();
-    myId = myName + "_" + Math.random().toString(36).slice(2,6);
-    roomCode = inputRoomCode.value.trim().toUpperCase();
-    const snap = await db.ref("rooms/" + roomCode).get();
-    if (!snap.exists()) return alert("Room not found.");
-    isHost = false;
-    await db.ref(`rooms/${roomCode}/players/${myId}`).set({ name: myName, ready: false });
-    enterRoomUI();
-  };
-
-  document.getElementById("btnLeave").onclick = async () => {
-    if (!roomCode) return;
-    await db.ref(`rooms/${roomCode}/players/${myId}`).remove();
-    cleanupLocalRoom();
-  };
-
-  function enterRoomUI() {
-    // show panel
-    roomPanel.classList.remove("hidden");
-    noRoomMessage.classList.add("hidden");
-    lobby.querySelector("#noRoomMessage").classList?.add("hidden");
-    roomCodeDisplay.textContent = roomCode;
-    meNameEl.textContent = myName;
-    document.getElementById("roomCodeDisplay").textContent = roomCode;
-    // listen for room meta & players
-    db.ref("rooms/" + roomCode).on("value", (s) => {
-      const rv = s.val();
-      if (!rv) return;
-      mode = rv.mode || modeSelect.value;
-      rounds = rv.rounds || computeRoundsForMode(mode, 2);
-      modeDisplay.textContent = mode;
-      roundsDisplay.textContent = rounds;
-      document.getElementById("modeDisplay").textContent = mode;
-      document.getElementById("roundsDisplay").textContent = rounds;
-      // host controls
-      if (rv.host && rv.host === myId) {
-        isHost = true;
-        btnStart.classList.remove("hidden");
-      } else {
-        isHost = false;
-        btnStart.classList.add("hidden");
-      }
-    });
-
-    db.ref("rooms/" + roomCode + "/players").on("value", (snap) => {
-      const val = snap.val() || {};
-      playersListEl.innerHTML = "";
-      playersStatus.innerHTML = "";
-      playersOrder = Object.keys(val);
-      playersCount.textContent = playersOrder.length;
-      for (let pid in val) {
-        const player = val[pid];
-        const li = document.createElement("li");
-        li.textContent = player.name + (pid === myId ? " (you)" : "");
-        playersListEl.appendChild(li);
-
-        const li2 = document.createElement("li");
-        li2.innerHTML = `<div class="flex justify-between"><div>${player.name}</div><div>${player.ready ? '<span class="text-green-400">Ready</span>' : '<span class="text-yellow-300">Not ready</span>'}</div></div>`;
-        playersStatus.appendChild(li2);
-      }
-
-      // update local approvals
-      if (playersOrder.length > 0) {
-        document.getElementById("playersCount").textContent = playersOrder.length;
-      }
-    });
-
-    // game metadata watchers
-    db.ref("rooms/" + roomCode + "/state").on("value", (snap) => {
-      const state = snap.val();
-      if (!state) return;
-      // if game started
-      if (state.phase === "playing") {
-        // leave lobby, enter game UI
-        lobby.classList.add("hidden");
-        game.classList.remove("hidden");
-        // set current turn info
-        currentRound = state.currentRound || 0;
-        currentPhaseType = state.currentPhaseType || "";
-        updateTurnUI(state);
-        subscribeToRound(state.currentRound);
-      } else if (state.phase === "ended") {
-        showRecap();
-      }
-    });
-
-    // keep my name visible on top
-    meNameEl.textContent = myName;
-    document.getElementById("roomPanel").classList.remove("hidden");
-  }
-
-  function cleanupLocalRoom() {
-    // stop listening
-    if (roomCode) {
-      db.ref("rooms/" + roomCode).off();
-      db.ref("rooms/" + roomCode + "/players").off();
-      db.ref("rooms/" + roomCode + "/state").off();
-      // clear local vars
-      roomCode = null;
-      isHost = false;
-      lobby.classList.remove("hidden");
-      game.classList.add("hidden");
-      roomPanel.classList.add("hidden");
-      noRoomMessage.classList.remove("hidden");
-      document.getElementById("roomPanel").classList.add("hidden");
-    }
-  }
-
-  /******************************
-   * Ready / Start / Flow control
-   ******************************/
-  btnReady.onclick = async () => {
-    if (!roomCode) return;
-    await db.ref(`rooms/${roomCode}/players/${myId}/ready`).set(true);
-  };
-
-  btnStart.onclick = async () => {
-    if (!roomCode) return;
-    // compute rounds based on player count and mode
-    const snap = await db.ref(`rooms/${roomCode}/players`).get();
-    const players = snap.val() || {};
-    const pcount = Object.keys(players).length;
-    const computed = computeRoundsForMode(mode, pcount);
-    rounds = customRounds.value ? Math.max(1, Number(customRounds.value)) : computed;
-
-    // reset any previous game data
-    await db.ref(`rooms/${roomCode}/state`).set({
-      phase: "playing",
-      currentRound: 0,
-      currentPhaseType: null,
-      mode: mode,
-      rounds: rounds,
-      startedAt: Date.now()
-    });
-
-    // store order (list of player ids)
-    const order = Object.keys(players);
-    await db.ref(`rooms/${roomCode}/order`).set(order);
-
-    // clear prior rounds data
-    await db.ref(`rooms/${roomCode}/rounds`).remove();
-
-    // set up initial rounds array (only metadata)
-    for (let r = 0; r < rounds; r++) {
-      // for each round create placeholder
-      await db.ref(`rooms/${roomCode}/rounds/${r}`).set({ phaseType: null, submissions: {} });
-    }
-
-    // advance to first round
-    advanceToRound(0);
-  };
-
-  function computeRoundsForMode(modeName, playerCount){
-    if (customRounds.value) return Math.max(1, Number(customRounds.value));
-    if (modeName === "regular") return 2;
-    if (modeName === "masterpiece") return 1;
-    if (modeName === "icebreaker") return Math.max(2, playerCount);
-    if (modeName === "story") return Math.max(2, playerCount);
-    return 2;
-  }
-
-  async function advanceToRound(rIndex){
-    const orderSnap = await db.ref(`rooms/${roomCode}/order`).get();
-    const order = orderSnap.val() || [];
-    playersOrder = order;
-    // decide phaseType for this round depending on mode and round index
-    let phaseType = "text";
-    if (mode === "regular") {
-      phaseType = (rIndex === 0) ? "text" : "draw";
-    } else if (mode === "icebreaker") {
-      phaseType = (rIndex === 0) ? "text" : "draw";
-    } else if (mode === "masterpiece") {
-      phaseType = "draw";
-    } else if (mode === "story") {
-      phaseType = "text";
-    }
-
-    // update state
-    await db.ref(`rooms/${roomCode}/state`).update({
-      currentRound: rIndex,
-      currentPhaseType: phaseType
-    });
-
-    // ensure round record exists
-    await db.ref(`rooms/${roomCode}/rounds/${rIndex}`).update({ phaseType });
-  }
-
-  btnNextTurn.onclick = async () => {
-    // only host can advance
-    if (!isHost || !roomCode) return;
-    const stateSnap = await db.ref(`rooms/${roomCode}/state`).get();
-    const state = stateSnap.val();
-    let next = (state.currentRound || 0) + 1;
-    if (next >= state.rounds) {
-      // end game
-      await db.ref(`rooms/${roomCode}/state`).update({ phase: "ended" });
-      return;
-    }
-    await advanceToRound(next);
-  };
-
-  btnEndGame.onclick = async () => {
-    if (!isHost || !roomCode) return;
-    await db.ref(`rooms/${roomCode}/state`).update({ phase: "ended" });
-  };
-
-  /******************************
-   * Round subscriptions & UI updates
-   ******************************/
-  function updateTurnUI(state) {
-    currentRound = state.currentRound;
-    currentPhaseType = state.currentPhaseType;
-    document.getElementById("gameStatus").textContent = `Round ${currentRound+1} / ${state.rounds} — ${state.mode}`;
-    document.getElementById("turnInfo").textContent = `Phase: ${currentPhaseType || '…'}`;
-    // display controls to host
-    if (isHost) {
-      btnNextTurn.classList.remove("hidden");
-      btnEndGame.classList.remove("hidden");
-    } else {
-      btnNextTurn.classList.add("hidden");
-      btnEndGame.classList.add("hidden");
-    }
-    // show which UI elements are relevant
-    if (currentPhaseType === "text") {
-      promptText.textContent = `Write a text/prompt for round ${currentRound+1}`;
-      document.getElementById("promptArea").style.display = "block";
-      document.getElementById("textInput").style.display = "block";
-      btnSubmitText.style.display = "inline-block";
-      btnSubmitDraw.style.display = "none";
-      drawControls.classList.add("hidden");
-    } else if (currentPhaseType === "draw") {
-      promptText.textContent = `Draw the assigned prompt for round ${currentRound+1}`;
-      btnSubmitText.style.display = "none";
-      btnSubmitDraw.style.display = "inline-block";
-      drawControls.classList.remove("hidden");
-    }
-  }
-
-  // subscribe to strokes / submissions for a particular round
-  function subscribeToRound(rIndex) {
-    if (!roomCode) return;
-    // clear canvas and local undo
-    clearCanvas();
-    strokeUndoStack = [];
-    strokesRenderedForPlayers = {};
-    // listen for submissions added for this round
-    const subsRef = db.ref(`rooms/${roomCode}/rounds/${rIndex}/submissions`);
-    subsRef.off();
-    subsRef.on("child_added", (snap) => {
-      const pid = snap.key;
-      const val = snap.val();
-      // if draws exist, replay them
-      if (val.strokes) {
-        for (let sid in val.strokes) {
-          const stroke = val.strokes[sid];
-          renderStrokeFromRemote(stroke);
-        }
-      }
-    });
-    // also listen for strokes push events (live updates)
-    const strokesLiveRef = db.ref(`rooms/${roomCode}/rounds/${rIndex}/liveStrokes`);
-    strokesLiveRef.off();
-    strokesLiveRef.on("child_added", (snap) => {
-      const stroke = snap.val();
-      renderStrokeFromRemote(stroke);
-    });
-  }
-
-  /******************************
-   * Canvas drawing & stroke streaming
-   ******************************/
-  let drawing = false;
-  let currentTool = "pen";
-  let currentBrush = 4;
-
-  const rect = canvas.getBoundingClientRect();
-
-  function setTool(tool, size){
-    currentTool = tool;
-    if (tool === "pen") {
-      currentBrush = size;
-    } else if (tool === "eraser") {
-      currentBrush = size * 2;
-    }
-    // UI highlight
-    document.querySelectorAll(".tool-btn").forEach(b=>b.classList.remove("active"));
-    if (tool === "pen" && size === 4) toolSmall.classList.add("active");
-    if (tool === "pen" && size === 12) toolBig.classList.add("active");
-    if (tool === "eraser") toolEraser.classList.add("active");
-    brushSizeLabel.textContent = currentBrush;
-  }
-
-  toolSmall.onclick = () => setTool("pen", 4);
-  toolBig.onclick = () => setTool("pen", 12);
-  toolEraser.onclick = () => setTool("eraser", 16);
-  btnClear.onclick = () => {
-    clearCanvas();
-    // push clear event to DB for current round
-    pushClearEvent();
-  };
-  btnUndo.onclick = () => {
-    undoLocal();
-  };
-
-  function getCanvasPos(e){
-    const r = canvas.getBoundingClientRect();
-    const x = (e.clientX - r.left) * (canvas.width / r.width);
-    const y = (e.clientY - r.top) * (canvas.height / r.height);
-    return {x, y};
-  }
-
-  // mouse events
-  canvas.addEventListener("mousedown", (e)=>{
-    if (!roomCode) return;
-    if (currentPhaseType !== "draw") return;
-    drawing = true;
-    const pos = getCanvasPos(e);
-    startStroke(pos.x, pos.y);
-  });
-  window.addEventListener("mouseup", (e)=>{
-    if (!roomCode) return;
-    if (!drawing) return;
-    drawing = false;
-    endStroke();
-  });
-  canvas.addEventListener("mousemove", (e)=>{
-    if (!drawing) return;
-    const pos = getCanvasPos(e);
-    continueStroke(pos.x, pos.y);
-  });
-
-  // touch events
-  canvas.addEventListener("touchstart", (ev)=>{
-    ev.preventDefault();
-    if (!roomCode) return;
-    if (currentPhaseType !== "draw") return;
-    drawing = true;
-    const t = ev.touches[0];
-    const pos = getCanvasPos(t);
-    startStroke(pos.x, pos.y);
-  }, { passive:false });
-  canvas.addEventListener("touchend", (ev)=>{
-    ev.preventDefault();
-    drawing = false;
-    endStroke();
-  }, { passive:false });
-  canvas.addEventListener("touchmove", (ev)=>{
-    ev.preventDefault();
-    const t = ev.touches[0];
-    const pos = getCanvasPos(t);
-    continueStroke(pos.x, pos.y);
-  }, { passive:false });
-
-  // stroke lifecycle
-  let currentStroke = null;
-  function startStroke(x,y){
-    currentStroke = {
-      id: "s_" + Date.now() + "_" + Math.random().toString(36).slice(2,6),
-      uid: myId,
-      tool: currentTool,
-      color: colorPicker.value,
-      size: currentBrush,
-      points: [{x,y}],
-      ts: Date.now()
+    // ================= Firebase Setup =================
+    const firebaseConfig = {
+      apiKey: "AIzaSyBnxa5QbhfrD_8LTrZbrmjI5wVRKHSXGLg",
+      authDomain: "gartictwo.firebaseapp.com",
+      databaseURL: "https://gartictwo-default-rtdb.firebaseio.com", // ✅ required
+      projectId: "gartictwo",
+      storageBucket: "gartictwo.firebasestorage.app",
+      messagingSenderId: "602694382683",
+      appId: "1:602694382683:web:1dc11cb6b715944ba0fb7e"
     };
-    // draw locally
-    drawStrokeToCanvas(currentStroke);
-    // push stroke live to Firebase for current round's liveStrokes
-    if (roomCode && currentPhaseType === "draw") {
-      db.ref(`rooms/${roomCode}/rounds/${currentRound}/liveStrokes/${currentStroke.id}`).set(currentStroke);
-    }
-    // stash for undo
-    strokeUndoStack.push(currentStroke);
-  }
-  function continueStroke(x,y){
-    if (!currentStroke) return;
-    currentStroke.points.push({x,y});
-    drawStrokeToCanvas(currentStroke, true);
-    // update stroke in liveStrokes (overwrite)
-    if (roomCode && currentPhaseType === "draw") db.ref(`rooms/${roomCode}/rounds/${currentRound}/liveStrokes/${currentStroke.id}`).set(currentStroke);
-  }
-  function endStroke(){
-    if (!currentStroke) return;
-    // finalize: write stroke to submissions area for my player
-    if (roomCode && currentPhaseType === "draw") {
-      // push to liveStrokes (already there), then copy into my submissions
-      const subRef = db.ref(`rooms/${roomCode}/rounds/${currentRound}/submissions/${myId}/strokes/${currentStroke.id}`);
-      subRef.set(currentStroke);
-      // also remove the liveStrokes entry (optional), but keep it (so others also get)
-      db.ref(`rooms/${roomCode}/rounds/${currentRound}/liveStrokes/${currentStroke.id}`).remove().catch(()=>{});
-    }
-    currentStroke = null;
-  }
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-  function drawStrokeToCanvas(stroke, incremental=false){
-    if (!stroke || !stroke.points) return;
-    ctx.save();
-    if (stroke.tool === "eraser") {
-      ctx.globalCompositeOperation = "destination-out";
-      ctx.lineWidth = stroke.size;
-      ctx.strokeStyle = "rgba(0,0,0,1)";
-    } else {
-      ctx.globalCompositeOperation = "source-over";
-      ctx.lineWidth = stroke.size;
-      ctx.lineJoin = ctx.lineCap = "round";
-      ctx.strokeStyle = stroke.color || "#000";
-    }
-    ctx.beginPath();
-    const pts = stroke.points;
-    if (pts.length === 1) {
-      const p = pts[0];
-      ctx.moveTo(p.x, p.y);
-      ctx.arc(p.x, p.y, stroke.size/2, 0, Math.PI*2);
-      ctx.fillStyle = stroke.color;
-      ctx.fill();
-    } else {
-      ctx.moveTo(pts[0].x, pts[0].y);
-      for (let i=1;i<pts.length;i++){
-        ctx.lineTo(pts[i].x, pts[i].y);
-      }
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
+    let playerName = "";
+    let roomCode = "";
+    let isHost = false;
 
-  // remote stroke rendering (avoid duplicates)
-  function renderStrokeFromRemote(stroke) {
-    if (!stroke) return;
-    if (strokesRenderedForPlayers[stroke.id]) return;
-    strokesRenderedForPlayers[stroke.id] = true;
-    drawStrokeToCanvas(stroke);
-  }
+    const lobby = document.getElementById("lobby");
+    const gameArea = document.getElementById("gameArea");
+    const nicknameInput = document.getElementById("nickname");
+    const roomInput = document.getElementById("roomCode");
+    const playersList = document.getElementById("playersList");
+    const chatBox = document.getElementById("chatBox");
+    const chatInput = document.getElementById("chatInput");
 
-  function clearCanvas() {
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    // create a white background for visibility in saving previews
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-  }
+    // CREATE ROOM
+    document.getElementById("createRoom").onclick = () => {
+      playerName = nicknameInput.value.trim();
+      if (!playerName) return alert("Enter a name first!");
 
-  // push a clear event to DB (as a special stroke)
-  function pushClearEvent() {
-    const clearId = "clear_" + Date.now();
-    const evt = { id: clearId, uid: myId, tool: "clear", ts: Date.now() };
-    db.ref(`rooms/${roomCode}/rounds/${currentRound}/liveStrokes/${evt.id}`).set(evt).then(()=>{
-      // also add to my submissions so my final image includes clear
-      db.ref(`rooms/${roomCode}/rounds/${currentRound}/submissions/${myId}/strokes/${evt.id}`).set(evt);
-    });
-  }
+      roomCode = Math.random().toString(36).substring(2,6).toUpperCase();
+      isHost = true;
 
-  function undoLocal(){
-    if (!strokeUndoStack.length) return;
-    // remove last stroke locally and from DB
-    const last = strokeUndoStack.pop();
-    // remove from my submissions if present
-    if (roomCode) {
-      db.ref(`rooms/${roomCode}/rounds/${currentRound}/submissions/${myId}/strokes/${last.id}`).remove().catch(()=>{});
-    }
-    // re-render canvas from scratch using remaining strokes in DB
-    // we will reload all strokes for this round:
-    reloadAllStrokesForRound();
-  }
+      db.ref("rooms/" + roomCode).set({
+        host: playerName,
+        players: { [playerName]: true },
+        chat: []
+      }).then(() => {
+        joinRoom(roomCode, playerName);
+        alert("Room created! Code: " + roomCode);
+      }).catch(err => alert("Error: " + err.message));
+    };
 
-  async function reloadAllStrokesForRound(){
-    // clear and re-render from DB
-    clearCanvas();
-    strokesRenderedForPlayers = {};
-    const subsSnap = await db.ref(`rooms/${roomCode}/rounds/${currentRound}/submissions`).get();
-    const subs = subsSnap.val() || {};
-    for (let pid in subs){
-      const sset = subs[pid].strokes || {};
-      for (let sid in sset){
-        renderStrokeFromRemote(sset[sid]);
-      }
-    }
-  }
+    // JOIN ROOM
+    document.getElementById("joinRoom").onclick = () => {
+      playerName = nicknameInput.value.trim();
+      roomCode = roomInput.value.trim().toUpperCase();
+      if (!playerName || !roomCode) return alert("Enter both name and room code!");
 
-  /******************************
-   * Submit text/draw actions
-   ******************************/
-  btnSubmitText.onclick = async () => {
-    if (!roomCode) return;
-    const text = textInput.value.trim();
-    if (!text) return alert("Enter some text.");
-    // save the text as submission for current round under myId
-    await db.ref(`rooms/${roomCode}/rounds/${currentRound}/submissions/${myId}/text`).set({
-      text: text,
-      ts: Date.now(),
-      player: myName
-    });
-    textInput.value = "";
-    alert("Text submitted.");
-  };
+      joinRoom(roomCode, playerName);
+    };
 
-  btnSubmitDraw.onclick = async () => {
-    if (!roomCode) return;
-    // capture canvas image snapshot for final preview
-    const dataUrl = canvas.toDataURL("image/png");
-    // store a preview plus confirm (strokes are already stored live)
-    await db.ref(`rooms/${roomCode}/rounds/${currentRound}/submissions/${myId}/preview`).set({
-      img: dataUrl,
-      ts: Date.now(),
-      player: myName
-    });
-    alert("Drawing submitted.");
-  };
+    function joinRoom(code, name) {
+      db.ref("rooms/" + code + "/players/" + name).set(true);
 
-  btnSkip.onclick = async () => {
-    if (!roomCode) return;
-    // mark skip
-    await db.ref(`rooms/${roomCode}/rounds/${currentRound}/submissions/${myId}/skipped`).set({
-      ts: Date.now(), player: myName
-    });
-    alert("Skipped.");
-  };
+      lobby.classList.add("hidden");
+      gameArea.classList.remove("hidden");
 
-  /******************************
-   * End-of-game recap
-   ******************************/
-  async function showRecap(){
-    recapArea.classList.remove("hidden");
-    recapList.innerHTML = "";
-    // gather all rounds and order
-    const roundsSnap = await db.ref(`rooms/${roomCode}/rounds`).get();
-    const roundsData = roundsSnap.val() || {};
-    const orderSnap = await db.ref(`rooms/${roomCode}/order`).get();
-    const order = orderSnap.val() || [];
-    // for each player, build their storyline across rounds
-    for (let i=0;i<order.length;i++){
-      const pid = order[i];
-      const playerName = (await db.ref(`rooms/${roomCode}/players/${pid}/name`).get()).val() || pid;
-      const container = document.createElement("div");
-      container.className = "p-3 bg-slate-900 rounded";
-      container.innerHTML = `<div class="font-semibold mb-2">${playerName}'s storyline</div>`;
-      // show each round submission in order
-      for (let r = 0; r < Object.keys(roundsData).length; r++){
-        const sub = roundsData[r] && roundsData[r].submissions && roundsData[r].submissions[pid];
-        if (!sub) {
-          const line = document.createElement("div");
-          line.className = "text-sm text-slate-400 mb-1";
-          line.textContent = `Round ${r+1}: (no submission)`;
-          container.appendChild(line);
-        } else {
-          const box = document.createElement("div");
-          box.className = "mb-2 p-2 bg-white/5 rounded";
-          if (sub.text) {
-            box.innerHTML = `<div class="text-xs text-slate-300">Round ${r+1} — Text</div><div class="mt-1 text-sm">${escapeHtml(sub.text.text)}</div>`;
-          } else if (sub.preview && sub.preview.img) {
-            box.innerHTML = `<div class="text-xs text-slate-300">Round ${r+1} — Drawing</div><img src="${sub.preview.img}" style="max-width:100%; border-radius:6px; margin-top:6px; background:white;"/>`;
-          } else if (sub.strokes) {
-            // try to build a tiny canvas snapshot from strokes (we will render to dataURL by building a temp canvas)
-            const smallCanvas = document.createElement("canvas");
-            smallCanvas.width = 400; smallCanvas.height = 250;
-            const sctx = smallCanvas.getContext("2d");
-            sctx.fillStyle = "#fff";
-            sctx.fillRect(0,0,smallCanvas.width,smallCanvas.height);
-            for (let sid in sub.strokes) {
-              const st = sub.strokes[sid];
-              renderStrokeOnContext(sctx, st, smallCanvas.width/canvas.width, smallCanvas.height/canvas.height);
-            }
-            const imgData = smallCanvas.toDataURL();
-            box.innerHTML = `<div class="text-xs text-slate-300">Round ${r+1} — Drawing (replay)</div><img src="${imgData}" style="max-width:100%; border-radius:6px; margin-top:6px; background:white;"/>`;
-          } else if (sub.skipped) {
-            box.innerHTML = `<div class="text-xs text-slate-300">Round ${r+1}</div><div class="text-sm text-slate-400">Skipped</div>`;
-          } else {
-            box.innerHTML = `<div class="text-xs text-slate-300">Round ${r+1}</div><div class="text-sm text-slate-400">No visible data</div>`;
-          }
-          container.appendChild(box);
+      // Update player list
+      db.ref("rooms/" + code + "/players").on("value", snap => {
+        playersList.innerHTML = "";
+        if (snap.val()) {
+          Object.keys(snap.val()).forEach(p => {
+            let li = document.createElement("li");
+            li.textContent = p;
+            playersList.appendChild(li);
+          });
         }
-      }
-      recapList.appendChild(container);
-    }
-    // show recap area
-    document.getElementById("recapArea").classList.remove("hidden");
-  }
+      });
 
-  function renderStrokeOnContext(sctx, stroke, sx=1, sy=1) {
-    if (!stroke || !stroke.points) return;
-    sctx.save();
-    if (stroke.tool === "eraser") {
-      sctx.globalCompositeOperation = "destination-out";
-      sctx.lineWidth = (stroke.size||10) * (sx+sy)/2;
-      sctx.strokeStyle = "rgba(0,0,0,1)";
-    } else {
-      sctx.globalCompositeOperation = "source-over";
-      sctx.lineWidth = (stroke.size||4) * (sx+sy)/2;
-      sctx.lineJoin = sctx.lineCap = "round";
-      sctx.strokeStyle = stroke.color || "#000";
+      // Listen for chat
+      db.ref("rooms/" + code + "/chat").on("child_added", snap => {
+        let { name, msg } = snap.val();
+        let div = document.createElement("div");
+        div.innerHTML = `<b class="text-indigo-400">${name}:</b> ${msg}`;
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
+      });
     }
-    sctx.beginPath();
-    const points = stroke.points;
-    if (!points || points.length === 0) return;
-    sctx.moveTo(points[0].x * sx, points[0].y * sy);
-    for (let i=1;i<points.length;i++){
-      sctx.lineTo(points[i].x * sx, points[i].y * sy);
-    }
-    sctx.stroke();
-    sctx.restore();
-  }
 
-  /******************************
-   * Utility
-   ******************************/
-  function escapeHtml(s) {
-    if (!s) return "";
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-
-  /******************************
-   * Boot: minimal initialization
-   ******************************/
-  (function init(){
-    clearCanvas();
-    setTool("pen", 4);
-    colorPicker.value = "#000000";
-    inputName.value = inputName.value || "Player" + Math.floor(Math.random()*900+100);
-    // gracefully handle disconnect removal
-    window.addEventListener("beforeunload", ()=>{
-      if (roomCode) {
-        db.ref(`rooms/${roomCode}/players/${myId}`).remove();
+    // Chat send
+    chatInput.addEventListener("keypress", e => {
+      if (e.key === "Enter" && chatInput.value.trim() !== "") {
+        db.ref("rooms/" + roomCode + "/chat").push({ name: playerName, msg: chatInput.value });
+        chatInput.value = "";
       }
     });
 
-    // when state changes to playing, show UI
-    db.ref(".info/connected").on("value", (snap)=>{
-      const connected = snap.val();
-      if (!connected) return;
-      // nothing extra for now
-    });
-  })();
+    // ================= Drawing =================
+    const canvas = document.getElementById("drawingCanvas");
+    const ctx = canvas.getContext("2d");
+    let drawing = false;
+    let brushSize = 5;
+    let brushColor = "#000000";
+    let eraser = false;
 
-  /******************************
-   * Misc: watch for state changes and update UI (listen for new rounds)
-   ******************************/
-  // watch state to update UI elements
-  db.ref(`rooms`).on("child_changed", (snap) => {
-    // optional global changes
-  });
+    canvas.addEventListener("mousedown", () => drawing = true);
+    canvas.addEventListener("mouseup", () => drawing = false);
+    canvas.addEventListener("mouseout", () => drawing = false);
+    canvas.addEventListener("mousemove", draw);
 
-  // react to current state's round phase change to subscribe to that round's live strokes
-  db.ref().on("child_changed", ()=>{ /* noop */ });
+    function draw(e) {
+      if (!drawing) return;
+      ctx.fillStyle = eraser ? "#ffffff" : brushColor;
+      ctx.beginPath();
+      ctx.arc(e.offsetX, e.offsetY, brushSize, 0, Math.PI * 2);
+      ctx.fill();
+      // TODO: sync strokes via Firebase for multiplayer drawing
+    }
 
-  // watch for current round updates
-  // (we already set room state listener in enterRoomUI)
+    document.getElementById("colorPicker").oninput = e => {
+      brushColor = e.target.value;
+      eraser = false;
+    };
+    document.getElementById("toolSmall").onclick = () => { brushSize = 3; eraser = false; };
+    document.getElementById("toolBig").onclick = () => { brushSize = 15; eraser = false; };
+    document.getElementById("toolEraser").onclick = () => { eraser = true; brushSize = 10; };
+    document.getElementById("clearCanvas").onclick = () => ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  /******************************
-   * Small UX tweaks: automatic subscription when playing
-   ******************************/
-  // when the game state indicates playing, subscribe to the current round's live strokes
-  // done above inside enterRoomUI's rooms/<room>/state listener
-
+    // ================= Game Modes (scaffold) =================
+    // Regular, Icebreaker, Masterpiece, Story
+    // TODO: Add turn logic & storyline recap
   </script>
 </body>
 </html>
