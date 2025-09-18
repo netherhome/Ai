@@ -1,483 +1,367 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8">
-<title>HyphonChat</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<title>Hyphon Chat</title>
 <style>
-:root{--bg-dark:#111;--text-dark:#eee;}
-body{font-family:'Inter',sans-serif;margin:0;padding:0;background:var(--bg-dark);color:var(--text-dark);}
-#startupScreen{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#3498db,#9b59b6);color:#fff;z-index:9999;}
-#chatUI{display:none;flex-direction:column;padding:20px;box-sizing:border-box;height:100vh;}
-#chatContainer{display:flex;flex-direction:column;width:100%;max-width:900px;flex:1;margin:0 auto;}
-#chat{border:1px solid #444;padding:10px;height:60vh;overflow-y:auto;border-radius:12px;background:#222;flex:1;display:flex;flex-direction:column;scroll-behavior:smooth;}
-textarea{width:100%;height:50px;padding:10px;border-radius:8px;border:1px solid #555;margin-top:10px;font-weight:bold;background:linear-gradient(135deg,#3498db,#2980b9);color:#fff;resize:none;}
-button{padding:10px 15px;border:none;border-radius:8px;margin-left:5px;cursor:pointer;background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;font-weight:600;}
-/* message layout */
-.msgRow{display:flex;align-items:flex-start;margin:8px 0;gap:8px;max-width:100%;}
-.msgRow.right{margin-left:auto;flex-direction:row-reverse;}
-.msgRow img.pfp{width:40px;height:40px;border-radius:50%;}
-.nameAndBubble{display:flex;flex-direction:column;max-width:75%;}
-.username{font-size:13px;color:#bbb;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
-.msgBubble{padding:10px 14px;border-radius:12px;word-wrap:break-word;max-width:420px;}
-.msgBubble.me{align-self:flex-end;color:#fff;}
-.msgBubble.them{align-self:flex-start;color:#fff;}
-.joinMsg{color:#aaa;text-align:center;font-style:italic;margin:10px 0;}
-.timestamp{font-size:10px;color:#ccc;margin-top:6px;align-self:flex-end;}
-.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);justify-content:center;align-items:center;z-index:10000;}
-.modalContent{background:linear-gradient(135deg,#3498db,#2980b9);color:#fff;padding:20px;border-radius:12px;text-align:center;min-width:260px;}
-.modalContent input{padding:8px;margin:8px;border-radius:6px;border:none;width:80%;}
-.modalContent button{margin-top:8px;padding:8px 12px;}
-.headerBtns{display:flex;justify-content:center;margin-bottom:10px;}
-.headerBtns button{margin:0 5px;}
-.hidden{display:none;}
+body {
+  margin:0;
+  font-family:sans-serif;
+  background:#111;
+  color:#fff;
+}
+header {
+  position:fixed;
+  top:0;
+  width:100%;
+  background:#222;
+  padding:10px;
+  display:flex;
+  gap:10px;
+  z-index:1000;
+}
+header button {
+  background:linear-gradient(135deg,#f1c40f,#e67e22);
+  border:none;
+  padding:8px 14px;
+  border-radius:8px;
+  color:#fff;
+  font-weight:bold;
+  cursor:pointer;
+}
+#chatUI {
+  margin-top:70px;
+  padding:10px;
+}
+#chat {
+  max-height:400px;
+  overflow-y:auto;
+  padding:10px;
+  background:#1a1a1a;
+  border-radius:10px;
+  margin-bottom:10px;
+  scroll-behavior:smooth;
+}
+.msg {
+  margin:6px 0;
+  padding:8px 12px;
+  border-radius:12px;
+  display:inline-block;
+  max-width:50%;
+  word-wrap:break-word;
+}
+.msg.me {
+  background:#f39c12;
+  float:right;
+  clear:both;
+}
+.msg.other {
+  background:#3498db;
+  float:left;
+  clear:both;
+}
+.msgHeader {
+  display:flex;
+  align-items:center;
+  margin-bottom:3px;
+}
+.msgHeader img {
+  width:24px;
+  height:24px;
+  border-radius:50%;
+  margin-right:6px;
+}
+.msgHeader span {
+  font-weight:bold;
+  font-size:12px;
+}
+textarea#msg {
+  width:calc(100% - 90px);
+  height:40px;
+  border-radius:8px;
+  border:none;
+  padding:8px;
+  font-weight:bold;
+  resize:none;
+}
+#sendBtn {
+  background:linear-gradient(135deg,#e67e22,#d35400);
+  border:none;
+  padding:10px 18px;
+  border-radius:8px;
+  color:#fff;
+  font-weight:bold;
+  cursor:pointer;
+}
+.modal {
+  display:none;
+  position:fixed;
+  top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.7);
+  z-index:2000;
+}
+.modalContent {
+  background:linear-gradient(135deg,#2980b9,#2c3e50);
+  margin:10% auto;
+  padding:20px;
+  border-radius:10px;
+  width:300px;
+  color:#fff;
+}
+#startupScreen {
+  position:fixed;
+  top:0;left:0;width:100%;height:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(135deg,#2980b9,#2c3e50);
+  z-index:5000;
+}
+#startupScreen h1 {
+  font-size:28px;
+  margin-bottom:20px;
+}
 </style>
 </head>
 <body>
 
-<!-- Startup -->
+<!-- Startup Screen -->
 <div id="startupScreen">
   <h1>Welcome to Hyphon Chat</h1>
-  <div style="margin-top:18px;">
-    <button onclick="startAcc('Create')">Sign Up for Free</button>
-    <button onclick="startAcc('Login')" style="margin-left:12px;background:transparent;border:2px solid #fff;padding:8px 12px;color:#fff;font-weight:600;border-radius:8px;">Already have an account? Log In</button>
+  <div>
+    <button style="background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;font-weight:600;"
+      onclick="accUI('Create')">Sign Up for Free</button>
+    <div style="margin-top:10px;">
+      <button style="background:linear-gradient(135deg,#f1c40f,#e67e22);color:#fff;font-weight:600;"
+        onclick="accUI('Login')">Already have an account? Log in</button>
+    </div>
   </div>
 </div>
 
-<!-- Main UI -->
-<div id="chatUI">
-  <div class="headerBtns" id="mainHeader" style="display:none;">
-    <button id="accBtn">Account</button>
-    <button id="chatsBtn">My Chats</button>
-    <button id="newChatBtn">New Chat</button>
-    <button id="leaveBtn">Leave Chat</button>
-    <button id="dmsBtn">DMs</button>
-  </div>
+<header>
+  <button id="accBtn">Account</button>
+  <button id="chatsBtn">My Chats</button>
+  <button id="newChatBtn">New Chat</button>
+  <button id="leaveBtn">Leave Chat</button>
+  <button id="dmsBtn">DMs</button>
+  <button id="chatSettingsBtn" style="display:none;">Chat Settings</button>
+</header>
 
+<div id="chatUI">
   <div id="chatContainer">
     <div id="chat"></div>
-    <textarea id="msg" placeholder="Type your message..."></textarea>
-    <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
-      <button id="sendBtn">Send</button>
-      <div id="typingDiv" style="font-size:12px;color:#aaa;"></div>
-    </div>
+    <textarea id="msg" placeholder="Type..."></textarea>
+    <button id="sendBtn">Send</button>
+    <div id="typingDiv" style="font-size:12px;color:#aaa;margin-top:4px;"></div>
   </div>
 </div>
 
 <!-- Modals -->
 <div id="accModal" class="modal"><div class="modalContent" id="accBox"></div></div>
-<div id="chatsModal" class="modal"><div class="modalContent"><h3>My Chats</h3><div id="chatList" style="display:flex;flex-direction:column;gap:8px;margin-top:10px;"></div><button onclick="cls('chatsModal')">X</button></div></div>
+<div id="chatsModal" class="modal"><div class="modalContent"><h3>My Chats</h3><div id="chatList"></div><button onclick="cls('chatsModal')">X</button></div></div>
 <div id="newModal" class="modal"><div class="modalContent"><button onclick="mkChat()">Create Chat</button><button onclick="jnChat()">Join Chat</button><button onclick="cls('newModal')">X</button></div></div>
-<div id="mkModal" class="modal"><div class="modalContent"><input id="mkName" placeholder="Chat name"><br><button onclick="subMk()">Create</button><button onclick="cls('mkModal')">X</button></div></div>
-<div id="jnModal" class="modal"><div class="modalContent"><input id="jnCode" placeholder="Chat code"><br><button onclick="subJn()">Join</button><button onclick="cls('jnModal')">X</button></div></div>
-<div id="friendReqModal" class="modal"><div class="modalContent"><h3>Friend Requests</h3><div id="friendRequestsArea" style="display:flex;flex-direction:column;gap:8px;margin-top:10px;"></div><button onclick="cls('friendReqModal')">X</button></div></div>
-<div id="dmsModal" class="modal"><div class="modalContent"><h3>DMs / Friends</h3><div id="dmsListArea" style="display:flex;flex-direction:column;gap:8px;margin-top:10px;"></div><button onclick="cls('dmsModal')">X</button></div></div>
+<div id="mkModal" class="modal"><div class="modalContent"><input id="mkName" placeholder="Chat name"><button onclick="subMk()">Go</button><button onclick="cls('mkModal')">X</button></div></div>
+<div id="jnModal" class="modal"><div class="modalContent"><input id="jnCode" placeholder="Chat code"><button onclick="subJn()">Go</button><button onclick="cls('jnModal')">X</button></div></div>
+<div id="friendReqModal" class="modal"><div class="modalContent"><h3>Friend Requests</h3><div id="friendRequests"></div><button onclick="cls('friendReqModal')">X</button></div></div>
+<div id="dmsModal" class="modal"><div class="modalContent"><h3>DMs</h3><div id="dmsList"></div><button onclick="cls('dmsModal')">X</button></div></div>
+
+<!-- Chat Settings Modal -->
+<div id="chatSettingsModal" class="modal">
+  <div class="modalContent">
+    <h3>Chat Settings</h3>
+    <p><b>Invite Code:</b> <span id="chatInviteCode"></span></p>
+    <label>Slowmode (seconds): <input id="slowmodeInput" type="number" min="0"></label>
+    <button onclick="setSlowmode()">Set Slowmode</button>
+    <h4>Ban / Kick User</h4>
+    <input id="banUserInput" placeholder="Username">
+    <button onclick="banUser()">Ban</button>
+    <button onclick="kickUser()">Kick</button>
+    <button onclick="cls('chatSettingsModal')">X</button>
+  </div>
+</div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script>
-// Firebase config (unchanged)
+// Firebase
 const fb={apiKey:"AIzaSyCSh6K8e_CAswGyYuIvgMVKZ3T8b5gGKFU",authDomain:"hyphonchat.firebaseapp.com",databaseURL:"https://hyphonchat-default-rtdb.firebaseio.com",projectId:"hyphonchat",storageBucket:"hyphonchat.firebasestorage.app",messagingSenderId:"172774813412",appId:"1:172774813412:web:8d307b6a170bf270cfc6f1"};
 firebase.initializeApp(fb);
 const db=firebase.database();
 
-// State
-let me = "";                      // username
-let myColor = "#1abc9c";          // chosen color
-let myPfp = "https://th.bing.com/th/id/OIP.Xx93W3aTtFensmWsSFuDYAHaHa?w=202&h=202&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3";
-let currentChat = null;
-let listener = null;
-let typingTimeout = null;
-const standardColors = ["#1abc9c","#3498db","#e74c3c","#f1c40f","#9b59b6"];
-const secretColors = ["linear-gradient(45deg,#ff6ec4,#7873f5)","linear-gradient(45deg,#00f260,#0575e6)","linear-gradient(45deg,#ff512f,#dd2476)"];
-const chatDiv = document.getElementById("chat");
+let curUser=null;
+let curChat=null;
+let slowmode=0;
+let lastMsgTime=0;
 
-// helpers
-function cls(id){ document.getElementById(id).style.display = "none"; }
-function opn(id){ document.getElementById(id).style.display = "flex"; }
+// Utilities
+function shw(id){document.getElementById(id).style.display="block";}
+function cls(id){document.getElementById(id).style.display="none";}
 
-// ********* Startup -> show modal but hide startup overlay so buttons work *********
-function startAcc(type){
-  // hide startup overlay so modals and header become clickable
-  document.getElementById("startupScreen").style.display = "none";
-  accUI(type);
-}
-
-// ********* Account UI: Create | Login | Settings *********
+// Account UI
 function accUI(type){
-  const accBox = document.getElementById("accBox");
-  const accModal = document.getElementById("accModal");
-
-  if(type === "Create"){
-    accBox.innerHTML = `
-      <h3>Create Account</h3>
-      <input id="newName" placeholder="Username"><br>
-      <input id="newPass" type="password" placeholder="Password"><br>
-      <input id="newPfp" placeholder="Profile pic URL (optional)"><br>
-      <div style="margin-top:8px;">
-        <button onclick="doCreate()">Create</button>
-        <button onclick="accUI('Login')" style="margin-left:8px;background:transparent;border:2px solid #fff;padding:6px 10px;">Log in instead</button>
-      </div>
-      <div style="margin-top:8px;"><button onclick="cls('accModal')">X</button></div>
-    `;
-    accModal.style.display = "flex";
-    return;
+  document.getElementById("startupScreen").style.display="none";
+  const box=document.getElementById("accBox");
+  if(type==="Create"){
+    box.innerHTML='<h3>Create Account</h3><input id="newUser" placeholder="Username"><br><button onclick="createAcc()">Go</button>';
+  }else if(type==="Login"){
+    box.innerHTML='<h3>Login</h3><input id="oldUser" placeholder="Username"><br><button onclick="loginAcc()">Go</button>';
   }
-
-  if(type === "Login"){
-    accBox.innerHTML = `
-      <h3>Log In</h3>
-      <input id="logName" placeholder="Username"><br>
-      <input id="logPass" type="password" placeholder="Password"><br>
-      <div style="margin-top:8px;">
-        <button onclick="doLogin()">Log In</button>
-        <button onclick="accUI('Create')" style="margin-left:8px;background:transparent;border:2px solid #fff;padding:6px 10px;">Create account</button>
-      </div>
-      <div style="margin-top:8px;"><button onclick="cls('accModal')">X</button></div>
-    `;
-    accModal.style.display = "flex";
-    return;
-  }
-
-  // Settings
-  if(type === "Settings"){
-    if(!me){ accUI('Login'); return; } // if not logged in, open login instead
-    // Build color picker buttons
-    let colorButtons = standardColors.map(c => `<button onclick="setCol('${c}')" style="background:${c};width:28px;height:28px;border-radius:6px;border:none;margin:3px;"></button>`).join("");
-    if(me === "Nether") {
-      colorButtons += secretColors.map(c => `<button onclick="setCol('${c}')" style="background:${c};width:28px;height:28px;border-radius:6px;border:none;margin:3px;"></button>`).join("");
-    }
-    accBox.innerHTML = `
-      <h3>Account Settings</h3>
-      <div><img src="${myPfp}" width=72 height=72 style="border-radius:12px"></div>
-      <p style="margin:6px 0 10px 0">Username: <strong>${me}</strong></p>
-      <label>Change Username:</label><input id="chgName" placeholder="New name"><button onclick="chgName()">Save</button><br>
-      <label>Profile Pic URL:</label><input id="chgPfp" placeholder="https://..."><button onclick="chgPfpBtn()">Save</button><br>
-      <label>Pick Color:</label><div style="margin-top:6px;">${colorButtons}</div>
-      <div style="margin-top:12px;">
-        <button onclick="openFriendModal()">Friend Requests</button>
-        <button onclick="openDMs()">DMs</button>
-        <button onclick="friendSomeonePrompt()">Friend Someone</button>
-        <button onclick="logout()">Logout</button>
-        <button onclick="cls('accModal')">Close</button>
-      </div>
-    `;
-    accModal.style.display = "flex";
-    return;
-  }
+  shw("accModal");
 }
 
-// ********* Create & Login logic (uses Firebase) *********
-function doCreate(){
-  const n = document.getElementById("newName").value.trim();
-  const p = document.getElementById("newPass").value || null;
-  const pfp = document.getElementById("newPfp").value.trim() || myPfp;
-  if(!n) { alert("Enter username"); return; }
-  db.ref("users/"+n).get().then(snap=>{
-    if(snap.exists()){ alert("Name taken!"); return; }
-    // create
-    db.ref("users/"+n).set({password: p, color: myColor, pfp: pfp, myChats: {}, friends: {}, requests: {}}).then(()=>{
-      me = n; myPfp = pfp;
-      startChatUI();
-      cls('accModal');
-    });
-  }).catch(err=>alert("Error: "+err.message));
+function createAcc(){
+  const u=document.getElementById("newUser").value.trim();
+  if(!u) return;
+  curUser=u;
+  db.ref("users/"+u).set({pfp:"https://th.bing.com/th/id/OIP.Xx93W3aTtFensmWsSFuDYAHaHa?w=202&h=202&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3"});
+  cls("accModal");
 }
-
-function doLogin(){
-  const n = document.getElementById("logName").value.trim();
-  const p = document.getElementById("logPass").value || null;
-  if(!n){ alert("Enter username"); return; }
-  db.ref("users/"+n).get().then(snap=>{
-    if(!snap.exists()){ alert("User not found"); return; }
-    const data = snap.val();
-    if(data.password && data.password !== p){ alert("Incorrect password"); return; }
-    me = n;
-    myColor = data.color || myColor;
-    myPfp = data.pfp || myPfp;
-    startChatUI();
-    cls('accModal');
-  }).catch(err=>alert("Error: "+err.message));
+function loginAcc(){
+  const u=document.getElementById("oldUser").value.trim();
+  if(!u) return;
+  curUser=u;
+  cls("accModal");
 }
+// =========================
+// PART 2 STARTS HERE
+// =========================
 
-function startChatUI(){
-  document.getElementById("chatUI").style.display = "flex";
-  document.getElementById("mainHeader").style.display = "flex";
-  chatDiv.innerHTML = "";
-  document.getElementById("msg").value = "";
-  // load user's chats into My Chats modal (when opened)
+// New Chat
+function mkChat(){
+  cls("newModal");shw("mkModal");
 }
-
-// ********* Color setting (Nether-only gradients) *********
-function setCol(c){
-  if(c.startsWith("linear-gradient") && me !== "Nether"){ alert("Only 'Nether' may use gradient colors"); return; }
-  myColor = c;
-  if(me) db.ref("users/"+me+"/color").set(c);
-  alert("Color set");
-}
-
-// ********* Profile pic change *********
-function chgPfpBtn(){
-  const v = document.getElementById("chgPfp").value.trim();
-  if(!v) return alert("Enter URL");
-  myPfp = v;
-  if(me) db.ref("users/"+me+"/pfp").set(v);
-  alert("Profile picture updated");
-}
-
-// ********* Change username (keeps data) *********
-function chgName(){
-  const n = document.getElementById("chgName").value.trim();
-  if(!n) return alert("Enter name");
-  // copy node then remove old
-  db.ref("users/"+me).get().then(snap=>{
-    if(!snap.exists()) return alert("Current user data missing");
-    const data = snap.val();
-    db.ref("users/"+n).set(data).then(()=>{
-      db.ref("users/"+me).remove();
-      // update chats membership keys where needed (optional) - keep minimal: update display name in messages only future messages
-      me = n;
-      alert("Username changed");
-      cls('accModal');
-    });
-  });
-}
-
-// ********* Friend system (send request & view/accept) *********
-function friendSomeonePrompt(){
-  const to = prompt("Enter username to friend:");
-  if(!to) return;
-  if(to === me) return alert("You can't friend yourself");
-  // push request to target user's requests
-  db.ref("users/"+to+"/requests/"+me).set(true).then(()=>{
-    alert("Friend request sent to "+to);
-  }).catch(()=>alert("Could not send request (user may not exist)"));
-}
-
-function openFriendModal(){
-  // show pending requests (incoming) and allow accept/decline
-  const area = document.getElementById("friendRequestsArea");
-  area.innerHTML = "Loading...";
-  opn('friendReqModal');
-  db.ref("users/"+me+"/requests").get().then(snap=>{
-    area.innerHTML = "";
-    if(!snap.exists()){ area.innerHTML = "<div>No requests</div>"; return; }
-    snap.forEach(child=>{
-      const from = child.key;
-      const row = document.createElement("div");
-      row.style.display = "flex";
-      row.style.gap = "8px";
-      row.style.alignItems = "center";
-      row.innerHTML = `<div>${from}</div>`;
-      const acc = document.createElement("button"); acc.textContent = "Accept";
-      acc.onclick = ()=>{ acceptFriend(from); row.remove(); };
-      const dec = document.createElement("button"); dec.textContent = "Decline";
-      dec.onclick = ()=>{ db.ref("users/"+me+"/requests/"+from).remove(); row.remove(); };
-      row.appendChild(acc); row.appendChild(dec);
-      area.appendChild(row);
-    });
-  });
-}
-
-function acceptFriend(from){
-  // add to both friends lists and remove request
-  db.ref("users/"+me+"/friends/"+from).set(true);
-  db.ref("users/"+from+"/friends/"+me).set(true);
-  db.ref("users/"+me+"/requests/"+from).remove().then(()=>{ alert("Friend added: "+from); });
-}
-
-// ********* DMs: list friends and open DM chat *********
-function openDMs(){
-  const area = document.getElementById("dmsListArea");
-  area.innerHTML = "Loading...";
-  opn('dmsModal');
-  db.ref("users/"+me+"/friends").get().then(snap=>{
-    area.innerHTML = "";
-    if(!snap.exists()) { area.innerHTML = "<div>No friends yet</div>"; return; }
-    snap.forEach(child=>{
-      const name = child.key;
-      const r = document.createElement("div");
-      r.style.display = "flex";
-      r.style.justifyContent = "space-between";
-      r.style.alignItems = "center";
-      r.innerHTML = `<div style="font-weight:600">${name}</div>`;
-      const btn = document.createElement("button"); btn.textContent = "Open DM";
-      btn.onclick = ()=>{ openOrCreateDM(name); cls('dmsModal'); };
-      r.appendChild(btn);
-      area.appendChild(r);
-    });
-  });
-}
-
-function openOrCreateDM(other){
-  if(!me) return alert("Log in first");
-  const ids = [me, other].sort();
-  const dmId = "dm_"+ids.join("_");
-  // ensure chat exists
-  db.ref("chats/"+dmId).get().then(snap=>{
-    if(!snap.exists()){
-      db.ref("chats/"+dmId).set({name:"DM: "+ids.join(" & "), members:{[me]:true,[other]:true}});
-      db.ref("users/"+me+"/myChats/"+dmId).set("DM: "+other);
-      db.ref("users/"+other+"/myChats/"+dmId).set("DM: "+me);
-    } else {
-      // ensure membership set
-      db.ref("chats/"+dmId+"/members/"+me).set(true);
-      db.ref("users/"+me+"/myChats/"+dmId).set(snap.val().name || ("DM: "+other));
-    }
-    joinChat(dmId);
-  });
-}
-
-// ********* Create / Join Chat *********
-function mkChat(){ cls('newModal'); opn('mkModal'); }
-function jnChat(){ cls('newModal'); opn('jnModal'); }
-
 function subMk(){
-  const n = document.getElementById("mkName").value.trim();
-  if(!n) return alert("Enter a name");
-  // numeric 5-digit code
-  const code = Math.floor(10000 + Math.random()*89999).toString();
-  db.ref("chats/"+code).set({name:n, members:{[me]:true}});
-  db.ref("users/"+me+"/myChats/"+code).set(n);
-  // push join system message only if not previously member
-  db.ref("chats/"+code+"/members/"+me).get().then(s=>{
-    if(!s.exists()) db.ref("messages/"+code).push({system:true,txt:`[${code}] ${me} Joined`,timestamp:Date.now()});
-    db.ref("chats/"+code+"/members/"+me).set(true);
-  });
-  cls('mkModal');
-  joinChat(code);
+  const name=document.getElementById("mkName").value.trim();
+  if(!name||!curUser) return;
+  const code=Math.random().toString(36).substr(2,6);
+  curChat=code;
+  db.ref("chats/"+code).set({name:name,owner:curUser});
+  db.ref("chats/"+code+"/members/"+curUser).set(true);
+  db.ref("chats/"+code+"/msgs").push({sys:`[${code}] ${curUser} Joined`});
+  loadChat(code);
+  cls("mkModal");
 }
 
+function jnChat(){
+  cls("newModal");shw("jnModal");
+}
 function subJn(){
-  const c = document.getElementById("jnCode").value.trim();
-  if(!c) return alert("Enter code");
-  db.ref("chats/"+c).get().then(snap=>{
-    if(!snap.exists()) return alert("Chat not found");
-    db.ref("users/"+me+"/myChats/"+c).set(snap.val().name);
-    db.ref("chats/"+c+"/members/"+me).get().then(s=>{
-      if(!s.exists()) db.ref("messages/"+c).push({system:true,txt:`[${c}] ${me} Joined`,timestamp:Date.now()});
-      db.ref("chats/"+c+"/members/"+me).set(true);
-    });
-    cls('jnModal');
-    joinChat(c);
+  const code=document.getElementById("jnCode").value.trim();
+  if(!code) return;
+  curChat=code;
+  db.ref("chats/"+code+"/members/"+curUser).set(true);
+  loadChat(code);
+  cls("jnModal");
+}
+
+// Load chat
+function loadChat(code){
+  document.getElementById("chat").innerHTML="";
+  db.ref("chats/"+code+"/owner").once("value").then(s=>{
+    if(s.val()===curUser){
+      document.getElementById("chatSettingsBtn").style.display="inline-block";
+      document.getElementById("chatInviteCode").innerText=code;
+    }else{
+      document.getElementById("chatSettingsBtn").style.display="none";
+    }
+  });
+  db.ref("chats/"+code+"/msgs").on("child_added",snap=>{
+    const m=snap.val();
+    addMsg(m);
   });
 }
 
-// joinChat (listens messages)
-function joinChat(code){
-  currentChat = code;
-  chatDiv.innerHTML = "";
-  // remove previous listener
-  if(listener){ db.ref("messages/"+currentChat).off("child_added", listener); listener = null; }
-  const path = db.ref("messages/"+code);
-  // attach listener
-  listener = path.on("child_added", snap => {
-    const m = snap.val();
-    renderMessage(m);
-  });
-  // ensure typing listener etc.
-  listenTyping();
+// Add message
+function addMsg(m){
+  const c=document.getElementById("chat");
+  let div=document.createElement("div");
+  if(m.sys){
+    div.innerHTML="<i>"+m.sys+"</i>";
+  }else{
+    const who=m.user;
+    const msg=document.createElement("div");
+    msg.className="msg "+(who===curUser?"me":"other");
+    let header=document.createElement("div");
+    header.className="msgHeader";
+    let img=document.createElement("img");
+    img.src=m.pfp||"https://th.bing.com/th/id/OIP.Xx93W3aTtFensmWsSFuDYAHaHa?w=202&h=202&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3";
+    let uname=document.createElement("span");
+    uname.innerText=who;
+    if(curChat&&m.user){
+      db.ref("chats/"+curChat+"/owner").once("value").then(s=>{
+        if(s.val()===who) uname.style.fontWeight="bold";
+      });
+    }
+    header.appendChild(img);
+    header.appendChild(uname);
+    msg.appendChild(header);
+    let txt=document.createElement("div");
+    txt.innerText=m.txt;
+    msg.appendChild(txt);
+    div.appendChild(msg);
+  }
+  c.appendChild(div);
+  c.scrollTop=c.scrollHeight;
 }
 
-// leave chat: remove membership and remove from user's myChats (per your request)
-function leaveChat(){
-  if(!currentChat) return alert("No chat to leave");
-  if(!confirm("Leave this chat?")) return;
-  // remove from chat members and from user's myChats
-  db.ref("chats/"+currentChat+"/members/"+me).remove();
-  db.ref("users/"+me+"/myChats/"+currentChat).remove();
-  // stop listening
-  if(listener){ db.ref("messages/"+currentChat).off("child_added", listener); listener = null; }
-  currentChat = null;
-  chatDiv.innerHTML = "";
-}
-
-// ********* Send message *********
-document.getElementById("sendBtn").addEventListener("click", sendMessage);
-function sendMessage(){
-  const txt = document.getElementById("msg").value.trim();
-  if(!txt || !currentChat) return;
-  document.getElementById("msg").value = "";
-  db.ref("messages/"+currentChat).push({u:me,txt:txt,c:myColor,pic:myPfp,timestamp:Date.now()});
-}
-
-// ********* Render message *********
-function renderMessage(d){
-  if(!d) return;
-  if(d.system){
-    const j = document.createElement("div"); j.className = "joinMsg"; j.textContent = d.txt;
-    chatDiv.appendChild(j);
-    chatDiv.scrollTop = chatDiv.scrollHeight;
+// Send
+document.getElementById("sendBtn").onclick=function(){
+  const now=Date.now();
+  if(slowmode>0 && now-lastMsgTime<slowmode*1000){
+    alert(`Slowmode is on! Please wait ${Math.ceil((slowmode*1000-(now-lastMsgTime))/1000)}s`);
     return;
   }
-  const row = document.createElement("div");
-  row.className = "msgRow" + (d.u === me ? " right" : "");
-  const img = document.createElement("img"); img.className = "pfp"; img.src = d.pic || myPfp;
-  const wrap = document.createElement("div"); wrap.className = "nameAndBubble";
-  const nameEl = document.createElement("div"); nameEl.className = "username"; nameEl.textContent = d.u;
-  const bubble = document.createElement("div"); bubble.className = "msgBubble " + (d.u===me ? "me" : "them");
-  // gradient only allowed for Nether
-  if(d.c && (typeof d.c === "string") && d.c.startsWith("linear-gradient")){
-    bubble.style.background = (d.u === "Nether") ? d.c : (d.c = d.c); // if not Nether, fallback (we'll set default below)
+  sendMessage();
+  lastMsgTime=now;
+};
+function sendMessage(){
+  const t=document.getElementById("msg").value.trim();
+  if(!t||!curUser||!curChat) return;
+  db.ref("users/"+curUser).once("value").then(s=>{
+    const pfp=(s.val()&&s.val().pfp)?s.val().pfp:"https://th.bing.com/th/id/OIP.Xx93W3aTtFensmWsSFuDYAHaHa?w=202&h=202&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3";
+    db.ref("chats/"+curChat+"/msgs").push({user:curUser,txt:t,pfp:pfp});
+    document.getElementById("msg").value="";
+  });
+}
+
+// Chat settings
+function setSlowmode(){
+  const val=parseInt(document.getElementById("slowmodeInput").value);
+  if(!isNaN(val)&&val>=0){
+    slowmode=val;
+    alert("Slowmode set to "+val+" seconds");
   }
-  if(!bubble.style.background) bubble.style.background = (d.c || (d.u===me ? myColor : "#555"));
-  bubble.textContent = d.txt;
-  const time = document.createElement("div"); time.className = "timestamp"; time.textContent = new Date(d.timestamp||Date.now()).toLocaleTimeString();
-  // assemble
-  wrap.appendChild(nameEl);
-  wrap.appendChild(bubble);
-  wrap.appendChild(time);
-  row.appendChild(img);
-  row.appendChild(wrap);
-  chatDiv.appendChild(row);
-  chatDiv.scrollTop = chatDiv.scrollHeight;
+}
+function banUser(){
+  const user=document.getElementById("banUserInput").value.trim();
+  if(user){
+    db.ref("chats/"+curChat+"/banned/"+user).set(true);
+    alert(user+" banned!");
+  }
+}
+function kickUser(){
+  const user=document.getElementById("banUserInput").value.trim();
+  if(user){
+    db.ref("chats/"+curChat+"/members/"+user).remove();
+    alert(user+" kicked!");
+  }
 }
 
-// ********* Typing indicator *********
-document.getElementById("msg").addEventListener("input", ()=>{
-  if(!currentChat || !me) return;
-  db.ref("typing/"+currentChat+"/"+me).set(true);
-  clearTimeout(typingTimeout);
-  typingTimeout = setTimeout(()=>{ db.ref("typing/"+currentChat+"/"+me).remove(); }, 1500);
-});
-function listenTyping(){
-  if(!currentChat) return;
-  db.ref("typing/"+currentChat).on("value", snap=>{
-    const arr = [];
-    snap.forEach(s => { if(s.key !== me) arr.push(s.key); });
-    document.getElementById("typingDiv").textContent = arr.length ? arr.join(", ") + " is typing..." : "";
-  });
-}
-
-// ********* My Chats modal *********
-function openChats(){
-  opn('chatsModal');
-  const list = document.getElementById("chatList");
-  list.innerHTML = "Loading...";
-  db.ref("users/"+me+"/myChats").get().then(snap=>{
-    list.innerHTML = "";
-    if(!snap.exists()){ list.innerHTML = "<div>No chats</div>"; return; }
-    snap.forEach(c=>{
-      const btn = document.createElement("button");
-      btn.textContent = c.val();
-      btn.onclick = ()=>{ cls('chatsModal'); joinChat(c.key); };
-      list.appendChild(btn);
-    });
-  });
-}
-
-// ********* Utilities: open/close modals, newChat / joinChat UI *********
-document.getElementById("accBtn").addEventListener("click", ()=> accUI("Settings"));
-document.getElementById("chatsBtn").addEventListener("click", openChats);
-document.getElementById("newChatBtn").addEventListener("click", ()=> opn('newModal'));
-document.getElementById("leaveBtn").addEventListener("click", leaveChat);
-document.getElementById("dmsBtn").addEventListener("click", openDMs);
-
-function mkChat(){ cls('newModal'); opn('mkModal'); }
-function jnChat(){ cls('newModal'); opn('jnModal'); }
-
-// small helper to avoid startup overlay blocking clicks in old versions
-// (we already hide startupScreen when startAcc called)
+// Buttons
+document.getElementById("accBtn").onclick=function(){accUI("Login");};
+document.getElementById("newChatBtn").onclick=function(){shw("newModal");};
+document.getElementById("chatsBtn").onclick=function(){shw("chatsModal");};
+document.getElementById("leaveBtn").onclick=function(){
+  if(curChat){
+    db.ref("chats/"+curChat+"/members/"+curUser).remove();
+    curChat=null;
+    document.getElementById("chat").innerHTML="";
+    alert("Left chat");
+  }
+};
+document.getElementById("dmsBtn").onclick=function(){shw("dmsModal");};
+document.getElementById("chatSettingsBtn").onclick=function(){shw("chatSettingsModal");};
 </script>
 </body>
 </html>
